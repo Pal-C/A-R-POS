@@ -25,6 +25,11 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+__pycache__/
+*.py[cod]
+*.sqlite3
+.venv/
+venv/
 
 # PyInstaller
 #   Usually these files are written by a python script from a template
@@ -218,3 +223,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Environment variables
+.env
+.env.*
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
