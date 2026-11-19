@@ -79,6 +79,9 @@ class StringingOrder(models.Model):
                 name="stringing_discount_not_above_price"
             ),
         ]
+    permissions = [
+        ("manage_stringing_orders", "Can manage stringing orders")
+    ]
 
     @property
     def total_amount(self):

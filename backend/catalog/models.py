@@ -57,6 +57,10 @@ class Product(models.Model):
                 name="product_cost_price_nonnegative"
             ),
         ]
+    permissions = [
+        ("adjust_stock", "Can adjust stock"),
+        ("view_product_cost", "Can view product cost")
+    ]
 
     def __str__(self):
         return f"{self.sku} - {self.name}"

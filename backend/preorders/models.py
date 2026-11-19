@@ -61,6 +61,9 @@ class PreOrder(models.Model):
                 name="preorder_price_nonnegative"
             ),
         ]
+    permissions = [
+        ("manage_preorders", "Can manage preorders")
+    ]
 
     @property
     def total_amount(self):

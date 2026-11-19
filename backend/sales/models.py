@@ -96,6 +96,12 @@ class Sale(models.Model):
                 name="sale_discount_not_above_subtotal"
             )
         ]
+    permissions = [
+        ("finalize_sale", "Can finalize sales"),
+        ("cancel_sale", "Can cancel finalized sales"),
+        ("apply_sale_discount", "Can apply sale discounts"),
+        ("view_sales_reports", "Can view sales reports"),
+    ]
 
     def __str__(self):
         return self.sale_number or f"Sale #{self.pk}"
@@ -304,6 +310,10 @@ class Payment(models.Model):
                 name="payment_exactly_one_order"
             ),
         ]
+    permissions = [
+        ("record_payment", "Can record payments"),
+        ("process_refunt", "Can process refunds")
+    ]
 
     def __str__(self):
         return f"{self.payment_type}: ₱{self.amount}"
