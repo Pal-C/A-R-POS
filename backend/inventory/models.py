@@ -81,6 +81,12 @@ class InventoryMovement(models.Model):
                 name="inventory_movement_no_negative_stock"
             )
         ]
+        indexes = [
+            models.Index(
+                fields=["product", "-movement_date"],
+                name="inv_product_date_idx"
+            ),
+        ]
 
     def __str__(self):
         return (

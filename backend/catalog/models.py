@@ -57,10 +57,15 @@ class Product(models.Model):
                 name="product_cost_price_nonnegative"
             ),
         ]
-    permissions = [
-        ("adjust_stock", "Can adjust stock"),
-        ("view_product_cost", "Can view product cost")
-    ]
+        permissions = [
+            ("adjust_stock", "Can adjust stock"),
+            ("view_product_cost", "Can view product cost")
+        ]
+        indexes = [
+            models.Index(fields=["category"]),
+            models.Index(fields=["is_active"]),
+            models.Index(fields=["stock_quantity"]),
+        ]
 
     def __str__(self):
         return f"{self.sku} - {self.name}"
@@ -68,3 +73,18 @@ class Product(models.Model):
     @property
     def is_low_stock(self):
         return self.stock_quantity <= self.low_stock_threshold
+
+    @property
+    def is_out_of_stock(self):
+        return self.stock_quantity == 0
+
+
+    @property
+    def stock_status(self):
+        if self.stock_quantity == 0:
+            return "OUT_OF_STOCK"
+
+        if self.is_low_stock:
+            return "LOW_STOCK"
+
+        return "IN_STOCK" 
