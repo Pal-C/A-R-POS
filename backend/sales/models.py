@@ -38,6 +38,7 @@ class Sale(models.Model):
         related_name="sales"
     )
 
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -78,6 +79,10 @@ class Sale(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+        models.Index(fields=["status", "-created_at"]),
+        models.Index(fields=["customer", "-created_at"]),
+    ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(subtotal__gte=0),
@@ -267,7 +272,7 @@ class Payment(models.Model):
         default=Status.POSTED
     )
 
-    payment_date = models.DateTimeField(timezone.now)
+    payment_date = models.DateTimeField(default=timezone.now)
 
     reference_number = models.CharField(
         max_length=100, blank=True
@@ -312,7 +317,7 @@ class Payment(models.Model):
         ]
     permissions = [
         ("record_payment", "Can record payments"),
-        ("process_refunt", "Can process refunds")
+        ("process_refund", "Can process refunds")
     ]
 
     def __str__(self):
