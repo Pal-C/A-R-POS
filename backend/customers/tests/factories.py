@@ -62,7 +62,7 @@ def make_stringing_order(customer, user, **overrides):
     """Delegates to the stringing factory so orders get real order numbers."""
     from stringing.tests.factories import make_order
 
-    overrides.pop("order_number", None)
+    order_number = overrides.pop("order_number", None)
     status = overrides.pop("status", None)
     values = {
         "customer": customer,
@@ -75,6 +75,9 @@ def make_stringing_order(customer, user, **overrides):
     }
     values.update(overrides)
     order = make_order(user, **values)
+    if order_number is not None:
+        StringingOrder.objects.filter(pk=order.pk).update(order_number=order_number)
+        order.refresh_from_db()
     if status is not None:
         # History tests only need the status value; bypass the workflow.
         extra = {}
@@ -93,13 +96,37 @@ def make_stringing_order(customer, user, **overrides):
 
 
 def make_preorder(customer, user, **overrides):
+    """Delegates to the preorders factory so pre-orders get real numbers."""
+    from preorders.tests.factories import make_preorder as _make_preorder
+
+    order_number = overrides.pop("order_number", None)
+    status = overrides.pop("status", None)
     values = {
-        "order_number": f"PO-{_next():05d}",
         "customer": customer,
         "product": overrides.pop("product", None) or make_product(),
         "quantity": 1,
         "agreed_unit_price": Decimal("5000.00"),
-        "created_by": user,
     }
     values.update(overrides)
-    return PreOrder.objects.create(**values)
+    preorder = _make_preorder(user, **values)
+    if order_number is not None:
+        PreOrder.objects.filter(pk=preorder.pk).update(order_number=order_number)
+        preorder.refresh_from_db()
+    if status is not None:
+        # History tests only need the status value; bypass the workflow.
+        extra = {}
+        if status == PreOrder.Status.FULFILLED:
+            extra.update(
+                fulfilled_at=preorder.created_at,
+                fulfilled_by=user,
+                settled_at=preorder.created_at,
+            )
+        if status == PreOrder.Status.CANCELLED:
+            extra.update(
+                cancelled_at=preorder.created_at,
+                cancelled_by=user,
+                cancellation_reason="Test cancellation",
+            )
+        PreOrder.objects.filter(pk=preorder.pk).update(status=status, **extra)
+        preorder.refresh_from_db()
+    return preorder
