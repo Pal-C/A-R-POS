@@ -37,6 +37,7 @@ from inventory.services import (
 from preorders.models import PreOrder
 from sales.models import Payment, Sale, SaleItem
 from stringing.models import StringingOrder
+from stringing.services import sync_payment_state
 
 ZERO = Decimal("0.00")
 
@@ -429,6 +430,8 @@ def record_payment(
     - Refunds cannot exceed the net amount received.
     - For sales, the status is set to COMPLETED when fully paid and back
       to PENDING_PAYMENT otherwise (cancelled sales stay cancelled).
+    - For stringing orders, ``paid_in_full_at`` is set or cleared via
+      ``stringing.services.sync_payment_state``.
     """
     targets = [sale, stringing_order, preorder]
 
@@ -469,6 +472,14 @@ def record_payment(
                 "Cannot receive payment for a cancelled stringing order."
             )
 
+        # A completed, fully paid order is settled; money after pickup is
+        # only ever returned (stringing FR-028).
+        if order.is_settled and is_receipt:
+            raise ValidationError(
+                "This stringing order is completed and settled; it cannot "
+                "receive more payments."
+            )
+
     else:
         order = PreOrder.objects.select_for_update().get(pk=preorder.pk)
         target_field = "preorder"
@@ -501,6 +512,11 @@ def record_payment(
         reference_number=reference_number,
         notes=notes,
     )
+
+    # Stringing orders track the date they became paid in full (revenue
+    # recognition, stringing research R2); the order is still locked here.
+    if target_field == "stringing_order":
+        sync_payment_state(order)
 
     # Sale status reflects the net amount received.
     if target_field == "sale" and order.status != Sale.Status.CANCELLED:

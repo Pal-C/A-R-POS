@@ -136,6 +136,11 @@ class CustomerSummaryTests(TestCase):
         )
         pay(user=user, stringing_order=done, amount=D("300.00"),
             payment_method=Payment.Method.CASH)
+        # A refund after pickup does not reopen a balance (stringing FR-028).
+        process_refund(
+            user=user, stringing_order=done, amount=D("20.00"),
+            payment_method=Payment.Method.CASH, reason="Goodwill",
+        )
         # Cancelled stringing order: counted, adds nothing
         make_stringing_order(
             self.customer, user, status=StringingOrder.Status.CANCELLED

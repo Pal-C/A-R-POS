@@ -3,6 +3,7 @@ Story-level run through the customer API (quickstart.md):
 create → find → edit → transact → history → archive → reactivate → delete.
 """
 
+from django.contrib.auth.models import Permission
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -14,6 +15,11 @@ from sales.tests.factories import make_product
 class CustomerWorkflowTests(APITestCase):
     def setUp(self):
         self.cashier = make_user(username="cashier")
+        self.cashier.user_permissions.add(
+            Permission.objects.get(
+                content_type__app_label="sales", codename="record_payment"
+            )
+        )
         self.manager = make_user(
             username="manager", permissions=["archive_customer", "delete_customer"]
         )

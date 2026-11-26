@@ -24,6 +24,7 @@ class SalesAPITests(APITestCase):
         self.user.user_permissions.add(
             Permission.objects.get(codename="cancel_sale"),
             Permission.objects.get(codename="process_refund"),
+            Permission.objects.get(codename="record_payment"),
         )
         self.client.force_authenticate(user=self.user)
 
@@ -430,3 +431,21 @@ class SalesAPITests(APITestCase):
 
         self.assertEqual(first_response.status_code, 200)
         self.assertEqual(second_response.status_code, 400)
+
+    def test_receipt_requires_record_payment_permission(self):
+        sale = self.create_and_finalize_sale()
+        cashier = User.objects.create_user(username="no-perms", password="x")
+        self.client.force_authenticate(user=cashier)
+
+        response = self.client.post(
+            self.payments_url,
+            {
+                "sale": sale.pk,
+                "amount": "100.00",
+                "payment_method": Payment.Method.CASH,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Payment.objects.filter(sale=sale).exists())
