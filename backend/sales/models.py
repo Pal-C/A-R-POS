@@ -31,9 +31,10 @@ class Sale(models.Model):
         editable=False
     )
 
+    # PROTECT: a customer with sales can never be deleted (customers FR-019).
     customer = models.ForeignKey(
         "customers.Customer",
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="sales"

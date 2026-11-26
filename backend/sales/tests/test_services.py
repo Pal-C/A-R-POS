@@ -490,3 +490,47 @@ class CancelSaleTests(SalesServiceTestCase):
 
         # Stock was restored exactly once.
         self.assertEqual(self.stock(self.racket), 10)
+
+
+class ArchivedCustomerSaleTests(SalesServiceTestCase):
+    """Archived customers cannot be used on sales (customers FR-017)."""
+
+    def archive(self, customer):
+        from customers.services import archive_customer
+
+        archive_customer(customer.pk, self.user)
+        customer.refresh_from_db()
+
+    def test_finalize_refuses_draft_whose_customer_was_archived(self):
+        sale = self.draft(customer=self.customer)
+        self.archive(self.customer)
+
+        with self.assertRaises(ValidationError):
+            finalize_sale(sale.pk, self.user)
+
+        sale.refresh_from_db()
+        self.assertEqual(sale.status, Sale.Status.DRAFT)
+        self.assertEqual(self.stock(self.racket), 10)
+
+    def test_create_and_update_refuse_archived_customer(self):
+        sale = self.draft()
+        self.archive(self.customer)
+
+        with self.assertRaises(ValidationError):
+            self.draft(customer=self.customer)
+        with self.assertRaises(ValidationError):
+            update_draft_sale(sale_id=sale.pk, customer=self.customer)
+
+    def test_customer_check_adds_at_most_one_query_to_finalize(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def finalize_queries(customer):
+            sale = self.draft(items=[line(self.grip, 1)], customer=customer)
+            with CaptureQueriesContext(connection) as ctx:
+                finalize_sale(sale.pk, self.user)
+            return len(ctx.captured_queries)
+
+        walk_in = finalize_queries(None)
+        with_customer = finalize_queries(self.customer)
+        self.assertLessEqual(with_customer - walk_in, 1)
