@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
@@ -19,6 +20,10 @@ class SalesAPITests(APITestCase):
         self.user = User.objects.create_user(
             username="admin",
             password="test-password",
+        )
+        self.user.user_permissions.add(
+            Permission.objects.get(codename="cancel_sale"),
+            Permission.objects.get(codename="process_refund"),
         )
         self.client.force_authenticate(user=self.user)
 
@@ -350,6 +355,7 @@ class SalesAPITests(APITestCase):
                 "amount": "500.00",
                 "payment_method": Payment.Method.CASH,
                 "payment_type": Payment.PaymentType.REFUND,
+                "notes": "Price match adjustment.",
             },
             format="json",
         )
