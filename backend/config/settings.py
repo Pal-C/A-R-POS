@@ -10,8 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 import os
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -23,12 +24,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-@3@l9tqmy44v51t9cq$1kno5pny0*cpc+ejna28if&p%qd8rvt'
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -148,7 +153,11 @@ MAILERS = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    origin.strip()
+    for origin in os.getenv(
+        "DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173"
+    ).split(",")
+    if origin.strip()
 ]
 
 REST_FRAMEWORK = {
