@@ -177,6 +177,21 @@ Reactivating restores them.
 - **Delete race**: if a sale, stringing order or pre-order is attached to a customer while their
   deletion is being confirmed, the deletion is refused and nothing is removed.
 - **Archived with no history**: an archived customer with no history can still be deleted.
+- **Concurrent edits** are covered above. Each save is complete and consistent: two edits never
+  combine into a mix of both.
+
+### Screen States
+
+Every customer screen MUST show these four states (constitution Principle III):
+
+| Screen | Loading | Empty | Error | Success |
+|---|---|---|---|---|
+| Customer list / search | A placeholder list is shown while results load. The search box stays usable, and a new search replaces the pending one. | "No customers found" plus a "Create customer" action (US1 scenario 3). With the archived filter: "No archived customers". | A message that the list could not be loaded, with a retry action. Entries already shown stay visible. | Paged results with name, phone and an archived badge where relevant. |
+| New / edit customer form | The save button shows progress and is disabled to prevent double submission. | Not applicable. | Field errors next to each field (FR-002), or a single alert for non-field errors. Typed input is kept. | Confirmation ("Customer saved"), then the customer's details. A duplicate-phone warning (FR-003) appears alongside, linking to the matching customer. |
+| Customer details + summary | Placeholder for the summary while it loads. The customer fields show as soon as they are available. | A summary of zeros for a customer with no history. | "Customer not found" for an unknown or deleted customer; a load error with retry for other failures. | Fields, status, last archive/reactivate event, and summary. |
+| History tabs (sales, stringing orders, pre-orders) | A per-tab placeholder while that tab loads. | A per-tab message, e.g. "No stringing orders yet" (US4 scenario 5). | A per-tab error with retry. The other tabs are unaffected. | A paged list, newest first. |
+| Archive / reactivate dialog | The confirm button shows progress and is disabled. | Not applicable. | The refusal message (wrong state, no permission). The dialog stays open. | Confirmation ("Customer archived" / "Customer reactivated"); the status badge updates. |
+| Delete dialog | The confirm button shows progress and is disabled. | Not applicable. | For a customer with history, the refusal message plus an "Archive instead" action (FR-019). | Confirmation ("Customer deleted"), then back to the customer list. |
 
 ## Requirements *(mandatory)*
 
@@ -215,7 +230,8 @@ Reactivating restores them.
   description, string type, tension, status, price and dates, newest first and paged.
 - **FR-012**: Users MUST be able to view a customer's pre-orders with order number, product,
   quantity, agreed total, expected arrival date, status and amount paid, newest first and paged.
-- **FR-013**: The system MUST show a customer summary:
+- **FR-013**: The system MUST show a customer summary. Draft (unfinished) sales are not part of
+  history, counts or totals in FR-010 and FR-013:
   - the count of sales, stringing orders and pre-orders;
   - total spent (net amounts received on non-cancelled sales);
   - total outstanding balance across unpaid, non-cancelled sales, stringing orders and pre-orders.
@@ -223,7 +239,7 @@ Reactivating restores them.
 
 **Archiving**
 
-- **FR-015**: Users with archive permission MUST be able to archive and reactivate customers.
+- **FR-015**: Users permitted under FR-020 MUST be able to archive and reactivate customers.
   Archiving requires an explicit confirmation step.
 - **FR-016**: Archiving MUST NOT change or remove any sale, stringing order, pre-order or payment.
   Those records keep showing the customer.
@@ -271,11 +287,11 @@ Reactivating restores them.
   2 seconds, even for a customer with 500+ past transactions.
 - **SC-005**: Archiving or reactivating a customer changes 0 existing sales, stringing orders,
   pre-orders or payments, verified by comparing those records before and after.
-- **SC-007**: 100% of attempts to delete a customer with any history are refused, and every
-  successful deletion is traceable to a named staff member and time.
 - **SC-006**: In acceptance testing, staff answer "what does this customer still owe?" and "is
   their stringing order ready?" from the customer's page alone, on the first attempt, in at least
   9 out of 10 trials.
+- **SC-007**: 100% of attempts to delete a customer with any history are refused, and every
+  successful deletion is traceable to a named staff member and time.
 
 ## Assumptions
 
