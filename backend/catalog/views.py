@@ -2,8 +2,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import F
-
-from rest_framework import viewsets, status, filters
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -85,7 +84,7 @@ class ProductViewSet(viewsets.ModelViewSet):
                 except (InvalidOperation, ValueError):
                     raise ValidationError({
                         parameter: "Enter a valid nonnegative price."
-                    })
+                    }) from None
 
                 queryset = queryset.filter(
                     **{f"selling_price__{lookup}": price}

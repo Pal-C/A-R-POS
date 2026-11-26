@@ -1,9 +1,10 @@
 
-from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from catalog.models import Product
 from inventory.models import InventoryMovement
+
 
 class InventoryServiceError(Exception):
     """Base exception for inventory-related operations."""

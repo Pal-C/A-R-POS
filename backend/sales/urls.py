@@ -2,11 +2,11 @@
 from django.urls import path
 
 from sales.views import (
-    SaleListCreateView,
-    SaleDetailView,
-    FinalizeSaleView,
     CancelSaleView,
+    FinalizeSaleView,
     PaymentListCreateView,
+    SaleDetailView,
+    SaleListCreateView,
 )
 
 urlpatterns = [

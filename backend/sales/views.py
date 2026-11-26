@@ -1,25 +1,23 @@
-from django.shortcuts import render
 
 # Create your views here.
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
-
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
 
-from sales.models import Sale, Payment
+from sales.models import Payment, Sale
 from sales.serializers import (
-    SaleListSerializer,
-    SaleDetailSerializer,
-    SaleCreateSerializer,
-    PaymentSerializer,
     PaymentCreateSerializer,
+    PaymentSerializer,
+    SaleCreateSerializer,
+    SaleDetailSerializer,
+    SaleListSerializer,
 )
-from sales.services import finalize_sale, cancel_sale
+from sales.services import cancel_sale, finalize_sale
 
 
 def handle_service_validation_error(exc):

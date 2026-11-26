@@ -1,5 +1,5 @@
-from django.db import models
 from django.core.validators import MinValueValidator
+from django.db import models
 
 # Create your models here.
 
@@ -87,4 +87,4 @@ class Product(models.Model):
         if self.is_low_stock:
             return "LOW_STOCK"
 
-        return "IN_STOCK" 
+        return "IN_STOCK"

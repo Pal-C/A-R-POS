@@ -3,9 +3,9 @@ from rest_framework import serializers
 
 from catalog.models import Product
 from customers.models import Customer
-from sales.models import Sale, SaleItem, Payment
-from stringing.models import StringingOrder
 from preorders.models import PreOrder
+from sales.models import Payment, Sale, SaleItem
+from stringing.models import StringingOrder
 
 
 class SaleItemSerializer(serializers.ModelSerializer):
