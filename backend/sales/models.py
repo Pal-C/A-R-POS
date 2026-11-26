@@ -31,9 +31,10 @@ class Sale(models.Model):
         editable=False
     )
 
+    # PROTECT: a customer with sales can never be deleted (customers FR-019).
     customer = models.ForeignKey(
         "customers.Customer",
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="sales"
@@ -121,6 +122,9 @@ class Sale(models.Model):
     def amount_paid(self):
         """
         Net amount received: posted receipts minus posted refunds.
+
+        This is the canonical "net paid" rule; ``sales.selectors`` applies the
+        same rule in the database for lists and summaries.
 
         Iterates ``payments.all()`` so a ``prefetch_related("payments")``
         on the queryset is reused instead of issuing a query per sale.

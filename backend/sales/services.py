@@ -28,6 +28,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from catalog.models import Product
+from customers.services import ensure_usable
 from inventory.models import InventoryMovement
 from inventory.services import (
     deduct_stock_for_sale,
@@ -157,8 +158,7 @@ def create_draft_sale(
     if discount_amount < 0:
         raise ValidationError("Sale discount cannot be negative.")
 
-    if customer is not None and not customer.is_active:
-        raise ValidationError("This customer is archived and cannot be used.")
+    ensure_usable(customer)
 
     product_ids = [item["product"].pk for item in items]
 
@@ -223,8 +223,7 @@ def update_draft_sale(*, sale_id, customer=_UNSET, discount_amount=_UNSET):
     sale = _lock_draft_sale(sale_id)
 
     if customer is not _UNSET:
-        if customer is not None and not customer.is_active:
-            raise ValidationError("This customer is archived and cannot be used.")
+        ensure_usable(customer)
         sale.customer = customer
 
     if discount_amount is not _UNSET:
@@ -343,12 +342,20 @@ def finalize_sale(sale_id, user):
     deducts inventory for every line, assigns a sale number, and moves
     the sale to PENDING_PAYMENT (or COMPLETED for a zero-total sale).
 
-    Fails without side effects if any product is inactive or out of stock.
+    Fails without side effects if any product is inactive or out of stock,
+    or if the sale's customer has been archived.
     """
-    sale = Sale.objects.select_for_update().get(pk=sale_id)
+    # Lock only the sale row; the customer is joined in for the archive check.
+    sale = (
+        Sale.objects.select_for_update(of=("self",))
+        .select_related("customer")
+        .get(pk=sale_id)
+    )
 
     if sale.status != Sale.Status.DRAFT:
         raise ValidationError("Only draft sales can be finalized.")
+
+    ensure_usable(sale.customer)
 
     items = list(sale.items.select_related("product").order_by("product_id"))
 
