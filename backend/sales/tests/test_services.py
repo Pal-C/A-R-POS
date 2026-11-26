@@ -583,3 +583,39 @@ class StringingPaymentSyncTests(TestCase):
         # from the stringing app.
         self.assertEqual(len(sql), 4, sql)
         self.assertFalse(any("stringing" in q.split(" FROM ")[-1][:40] for q in sql))
+
+
+class PreOrderPaymentRuleTests(TestCase):
+    """record_payment refuses receipts on fulfilled pre-orders (preorders R2)."""
+
+    def test_fulfilled_preorder_refuses_receipts_allows_refunds(self):
+        from preorders.models import PreOrder
+        from preorders.services import change_status, fulfill_preorder
+        from preorders.tests.factories import make_preorder
+
+        user = make_user()
+        preorder = make_preorder(user, quantity=1, agreed_unit_price=Decimal("100.00"))
+        record_payment(
+            user=user,
+            amount=Decimal("100.00"),
+            payment_method=Payment.Method.CASH,
+            preorder=preorder,
+        )
+        for status in (PreOrder.Status.ORDERED, PreOrder.Status.ARRIVED):
+            change_status(preorder_id=preorder.pk, user=user, to_status=status)
+        preorder = fulfill_preorder(preorder_id=preorder.pk, user=user)
+
+        process_refund(
+            user=user,
+            amount=Decimal("20.00"),
+            payment_method=Payment.Method.CASH,
+            reason="Goodwill",
+            preorder=preorder,
+        )
+        with self.assertRaises(ValidationError):
+            record_payment(
+                user=user,
+                amount=Decimal("20.00"),
+                payment_method=Payment.Method.CASH,
+                preorder=preorder,
+            )

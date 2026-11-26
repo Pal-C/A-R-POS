@@ -100,6 +100,7 @@ class CustomerSummaryTests(TestCase):
             make_stringing_order,
             make_user,
         )
+        from preorders.models import PreOrder
         from sales.models import Payment
         from sales.services import cancel_sale, create_draft_sale, process_refund
         from sales.services import record_payment as pay
@@ -150,6 +151,22 @@ class CustomerSummaryTests(TestCase):
         po = make_preorder(self.customer, user, quantity=2)
         pay(user=user, preorder=po, amount=D("4000.00"),
             payment_method=Payment.Method.GCASH)
+        # Fulfilled pre-order refunded after handover: settled, adds nothing.
+        done_po = make_preorder(
+            self.customer, user, quantity=1, agreed_unit_price=D("1000.00")
+        )
+        pay(user=user, preorder=done_po, amount=D("1000.00"),
+            payment_method=Payment.Method.CASH)
+        PreOrder.objects.filter(pk=done_po.pk).update(
+            status=PreOrder.Status.FULFILLED,
+            fulfilled_at=done_po.created_at,
+            fulfilled_by=user,
+            settled_at=done_po.created_at,
+        )
+        process_refund(
+            user=user, preorder=done_po, amount=D("100.00"),
+            payment_method=Payment.Method.CASH, reason="Goodwill",
+        )
 
         # Another customer's records must not leak in.
         make_finalized_sale(make_customer(), user, paid="100.00")
@@ -163,7 +180,7 @@ class CustomerSummaryTests(TestCase):
             {
                 "sales_count": 3,
                 "stringing_orders_count": 3,
-                "preorders_count": 1,
+                "preorders_count": 2,
                 "total_spent": D("2300.00"),
                 "outstanding_balance": D("8600.00"),
                 "open_preorders_count": 1,

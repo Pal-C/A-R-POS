@@ -139,9 +139,15 @@ def customer_summary(customer):
         stringing_order__paid_in_full_at__isnull=False,
     ).aggregate(net=net_paid_expression())["net"]
 
+    # Settled pre-orders (fulfilled and paid in full) owe nothing, even after
+    # a refund made after handover (pre-orders R2). Legacy fulfilled ones
+    # never paid in full keep their real balance.
+    preorder_owing = ~Q(status=PreOrder.Status.CANCELLED) & ~Q(
+        status=PreOrder.Status.FULFILLED, settled_at__isnull=False
+    )
     preorders = PreOrder.objects.filter(customer=customer).aggregate(
         count=Count("id"),
-        owed=_sum(PREORDER_TOTAL, filter=not_cancelled),
+        owed=_sum(PREORDER_TOTAL, filter=preorder_owing),
         open=Count(
             "id",
             filter=~Q(
@@ -153,6 +159,9 @@ def customer_summary(customer):
         preorder__customer=customer
     ).exclude(
         preorder__status=PreOrder.Status.CANCELLED
+    ).exclude(
+        preorder__status=PreOrder.Status.FULFILLED,
+        preorder__settled_at__isnull=False,
     ).aggregate(net=net_paid_expression())["net"]
 
     outstanding = (

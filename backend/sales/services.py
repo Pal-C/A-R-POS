@@ -35,6 +35,7 @@ from inventory.services import (
     reverse_movement,
 )
 from preorders.models import PreOrder
+from preorders.services import sync_settlement as sync_preorder_settlement
 from sales.models import Payment, Sale, SaleItem
 from stringing.models import StringingOrder
 from stringing.services import sync_payment_state
@@ -426,7 +427,8 @@ def record_payment(
     sale, stringing order, or pre-order.
 
     - Receipts cannot exceed the outstanding balance and are not allowed
-      on drafts or cancelled orders.
+      on drafts, cancelled orders, settled stringing orders or fulfilled
+      pre-orders.
     - Refunds cannot exceed the net amount received.
     - For sales, the status is set to COMPLETED when fully paid and back
       to PENDING_PAYMENT otherwise (cancelled sales stay cancelled).
@@ -489,6 +491,13 @@ def record_payment(
                 "Cannot receive payment for a cancelled pre-order."
             )
 
+        # Fulfilled pre-orders are settled; money after handover is only
+        # ever returned (pre-orders research R2).
+        if order.is_settled and is_receipt:
+            raise ValidationError(
+                "This pre-order has been fulfilled; it cannot receive more payments."
+            )
+
     received = _net_received(
         Payment.objects.filter(
             **{target_field: order},
@@ -517,6 +526,10 @@ def record_payment(
     # recognition, stringing research R2); the order is still locked here.
     if target_field == "stringing_order":
         sync_payment_state(order)
+
+    # Legacy fulfilled pre-orders become settled once paid in full.
+    if target_field == "preorder":
+        sync_preorder_settlement(order)
 
     # Sale status reflects the net amount received.
     if target_field == "sale" and order.status != Sale.Status.CANCELLED:
