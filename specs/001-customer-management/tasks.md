@@ -39,14 +39,14 @@ research R10).
 
 **Purpose**: Test package and URL wiring for the customers app
 
-- [ ] T001 Replace `backend/customers/tests.py` with a test package: create
+- [X] T001 Replace `backend/customers/tests.py` with a test package: create
   `backend/customers/tests/__init__.py` and delete `backend/customers/tests.py`. This avoids the
   `tests.py`/`tests/` discovery clash.
-- [ ] T002 [P] Create `backend/customers/tests/factories.py` with `make_user(permissions=...)` (customers
+- [X] T002 [P] Create `backend/customers/tests/factories.py` with `make_user(permissions=...)` (customers
   app permissions), `make_customer(**overrides)`, and helpers that create a finalized sale, a
   stringing order and a pre-order for a customer. Reuse `backend/sales/tests/factories.py` for
   users, products and sale lines where possible.
-- [ ] T003 [P] Create `backend/customers/urls.py` with an empty `urlpatterns`, and mount it as
+- [X] T003 [P] Create `backend/customers/urls.py` with an empty `urlpatterns`, and mount it as
   `path("api/customers/", include("customers.urls"))` in `backend/config/urls.py`.
 
 ---
@@ -58,13 +58,13 @@ these.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 [P] Write tests for phone normalization in `backend/customers/tests/test_phone.py`:
+- [X] T004 [P] Write tests for phone normalization in `backend/customers/tests/test_phone.py`:
   `+63 917 123 4567`, `0917-123-4567`, `(0917) 1234567` → `09171234567`; `(02) 8123 4567` →
   `0281234567`; blank → `""`; partial `+63 917` → `0917`; bare partial `63917` stays `63917`;
   `is_phone_query()` true for `4567` and `+63 917`, false for `ana` and `ana 4567` (research R1).
-- [ ] T005 [P] Implement `normalize_phone(value)` and `is_phone_query(value)` in
+- [X] T005 [P] Implement `normalize_phone(value)` and `is_phone_query(value)` in
   `backend/customers/phone.py` per research R1. Make T004 pass.
-- [ ] T006 Extend `Customer` in `backend/customers/models.py`:
+- [X] T006 Extend `Customer` in `backend/customers/models.py`:
   - add the field in data-model.md `Customer.phone_normalized`, set in `save()` from
     `Customer.phone_number` using `normalize_phone`;
   - add the `customer_full_name_not_blank` check constraint (data-model.md `Customer.full_name`);
@@ -72,7 +72,7 @@ these.
     `Customer.is_active`, `Customer.full_name`);
   - add Meta permission `archive_customer`;
   - keep `Customer.created_at` and `Customer.updated_at` read-only (data-model.md).
-- [ ] T007 Add the `CustomerAuditEvent` model to `backend/customers/models.py`, with these
+- [X] T007 Add the `CustomerAuditEvent` model to `backend/customers/models.py`, with these
   data-model.md fields:
   - `CustomerAuditEvent.action` (TextChoices `ARCHIVED`/`REACTIVATED`/`DELETED`)
   - `CustomerAuditEvent.customer_ref` (indexed integer, not a FK)
@@ -81,11 +81,11 @@ these.
   - `CustomerAuditEvent.created_at`
 
   Add ordering newest first and an index on `(customer_ref, -created_at)`.
-- [ ] T008 Generate `backend/customers/migrations/0002_*.py` (schema for T006–T007). Hand-write
+- [X] T008 Generate `backend/customers/migrations/0002_*.py` (schema for T006–T007). Hand-write
   `backend/customers/migrations/0003_backfill_phone_normalized.py`: a data migration that fills
   data-model.md `Customer.phone_normalized` for existing rows, with a no-op reverse. Run
   `manage.py migrate` and `makemigrations --check`.
-- [ ] T009 [P] Write constraint and model tests in `backend/customers/tests/test_models.py`:
+- [X] T009 [P] Write constraint and model tests in `backend/customers/tests/test_models.py`:
   - a blank or whitespace-only `full_name` raises `IntegrityError` (data-model.md
     `Customer.full_name`);
   - `phone_normalized` is set on create and on update, and cleared when the phone is removed;
@@ -106,7 +106,7 @@ stored field and the timestamps.
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T010 [P] [US1] Write selector tests for `search_customers()` in
+- [X] T010 [P] [US1] Write selector tests for `search_customers()` in
   `backend/customers/tests/test_selectors.py`:
   - name substring, case-insensitive, trimmed;
   - phone substring across formats, including a partial `+63 917` search that matches
@@ -114,7 +114,7 @@ stored field and the timestamps.
   - `status` = `active` (default) / `archived` / `all`;
   - order by `full_name`, then `id`;
   - accented names ("Peña") found by their exact characters.
-- [ ] T011 [P] [US1] Write API tests for `GET /api/customers/` and `GET /api/customers/{id}/` in
+- [X] T011 [P] [US1] Write API tests for `GET /api/customers/` and `GET /api/customers/{id}/` in
   `backend/customers/tests/test_api.py`:
   - list item shape, pagination (`count`/`next`), and an invalid `status` → 400;
   - empty search returns the default list; no matches returns an empty `results` with 200;
@@ -124,15 +124,15 @@ stored field and the timestamps.
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement `search_customers(query, status)` in `backend/customers/selectors.py`:
+- [X] T012 [US1] Implement `search_customers(query, status)` in `backend/customers/selectors.py`:
   - use `is_phone_query`/`normalize_phone` to choose between matching data-model.md
     `Customer.phone_normalized` and `Customer.full_name`;
   - filter on `Customer.is_active` by `status`;
   - raise `ValidationError` for an unknown status.
-- [ ] T013 [P] [US1] Create `CustomerListSerializer` and `CustomerDetailSerializer` (all fields
+- [X] T013 [P] [US1] Create `CustomerListSerializer` and `CustomerDetailSerializer` (all fields
   read-only) in `backend/customers/serializers.py`, per contracts/customers-api.md (list item and
   detail without `summary`/`last_archive_event`). Fields come from data-model.md `Customer.*`.
-- [ ] T014 [US1] Implement `CustomerListCreateView` (GET only for now) and `CustomerDetailView`
+- [X] T014 [US1] Implement `CustomerListCreateView` (GET only for now) and `CustomerDetailView`
   (GET) in `backend/customers/views.py`. Use `search_customers`, convert service
   `ValidationError` to 400, use `IsAuthenticated`, and return 404 for unknown ids. Register the
   routes in `backend/customers/urls.py` as `customer-list-create` and `customer-detail`.
@@ -152,18 +152,18 @@ active. POST a second customer with the same phone in another format → 201, an
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T015 [P] [US2] Write service tests for `create_customer()` in
+- [X] T015 [P] [US2] Write service tests for `create_customer()` in
   `backend/customers/tests/test_services.py`:
   - name trimmed, and blank or whitespace-only rejected (data-model.md `Customer.full_name`);
   - email validated (data-model.md `Customer.email`);
   - phone characters validated and the length limit enforced (data-model.md
     `Customer.phone_number`);
   - new customers are active.
-- [ ] T016 [P] [US2] Write tests for `phone_matches()` in `backend/customers/tests/test_selectors.py`:
+- [X] T016 [P] [US2] Write tests for `phone_matches()` in `backend/customers/tests/test_selectors.py`:
   - matches on the normalized phone; active customers only; at most 5;
   - honors `exclude_id`;
   - blank or non-numeric input → empty.
-- [ ] T017 [P] [US2] Write API tests in `backend/customers/tests/test_api.py`:
+- [X] T017 [P] [US2] Write API tests in `backend/customers/tests/test_api.py`:
   - `POST /api/customers/` → 201 with the detail shape plus `duplicate_phone_customers`;
   - 400 with field-keyed errors for a blank name, a bad email, or bad phone characters;
   - client-sent `is_active=false`, `created_at` and `phone_normalized` are ignored;
@@ -172,19 +172,19 @@ active. POST a second customer with the same phone in another format → 201, an
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Implement `create_customer(**fields)`, with a docstring stating its side effects, in
+- [X] T018 [US2] Implement `create_customer(**fields)`, with a docstring stating its side effects, in
   `backend/customers/services.py`:
   - inside `transaction.atomic`, trim fields and validate data-model.md `Customer.full_name`,
     `Customer.phone_number` and `Customer.email`;
   - return the customer.
-- [ ] T019 [US2] Implement `phone_matches(phone, exclude_id=None)` in
+- [X] T019 [US2] Implement `phone_matches(phone, exclude_id=None)` in
   `backend/customers/selectors.py` per research R7, using data-model.md `Customer.phone_normalized`
   and `Customer.is_active`.
-- [ ] T020 [US2] Add `CustomerWriteSerializer` to `backend/customers/serializers.py`. It accepts
+- [X] T020 [US2] Add `CustomerWriteSerializer` to `backend/customers/serializers.py`. It accepts
   only `full_name`, `phone_number`, `email`, `address` and `notes`. Field rules come from
   data-model.md `Customer.full_name`, `Customer.phone_number` and `Customer.email`. Its `create()`
   calls `create_customer`.
-- [ ] T021 [US2] Add POST to `CustomerListCreateView` in `backend/customers/views.py`, responding 201
+- [X] T021 [US2] Add POST to `CustomerListCreateView` in `backend/customers/views.py`, responding 201
   with `CustomerDetailSerializer` data plus `duplicate_phone_customers` from `phone_matches`. Add
   `PhoneMatchesView`. Route it at `phone-matches/` in `backend/customers/urls.py`, **before** the
   `<int:pk>/` route.
@@ -203,7 +203,7 @@ searchable through US1 and shows in the details.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T022 [P] [US3] Write service tests for `update_customer()` in
+- [X] T022 [P] [US3] Write service tests for `update_customer()` in
   `backend/customers/tests/test_services.py`:
   - partial updates; the same validation as create;
   - a rejected update leaves the stored row unchanged;
@@ -211,7 +211,7 @@ searchable through US1 and shows in the details.
   - an archived customer can still be edited;
   - two updates made one after the other leave the second update's full set of values (last save
     wins, never a mix of both).
-- [ ] T023 [P] [US3] Write API tests in `backend/customers/tests/test_api.py`:
+- [X] T023 [P] [US3] Write API tests in `backend/customers/tests/test_api.py`:
   - `PATCH /api/customers/{id}/` → 200 with detail plus `duplicate_phone_customers` (excluding
     itself);
   - 400 for a blank name or bad email; 404 for an unknown id;
@@ -221,13 +221,13 @@ searchable through US1 and shows in the details.
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Implement `update_customer(customer_id, **fields)`, with a docstring stating its side
+- [X] T024 [US3] Implement `update_customer(customer_id, **fields)`, with a docstring stating its side
   effects, in `backend/customers/services.py`:
   - inside `transaction.atomic`, `select_for_update()` the customer;
   - validate only the fields supplied (data-model.md `Customer.full_name`,
     `Customer.phone_number`, `Customer.email`);
   - never touch `Customer.is_active`.
-- [ ] T025 [US3] Make `CustomerDetailView` in `backend/customers/views.py` accept PATCH, using
+- [X] T025 [US3] Make `CustomerDetailView` in `backend/customers/views.py` accept PATCH, using
   `CustomerWriteSerializer(partial=True)`, whose `update()` calls `update_customer`. Respond with
   detail data plus `duplicate_phone_customers` from `phone_matches(..., exclude_id=pk)`. Limit
   methods to GET, PATCH and DELETE (DELETE is wired in US5).
@@ -248,12 +248,12 @@ endpoint lists its record newest first with the right amounts.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T026 [P] [US4] Write tests in `backend/sales/tests/test_selectors.py`:
+- [X] T026 [P] [US4] Write tests in `backend/sales/tests/test_selectors.py`:
   - `net_paid_expression()` aggregate and `net_paid_subquery("sale")` annotation equal
     `Sale.amount_paid` for sales with receipts, refunds and voided payments, and for a sale with
     no payments (→ 0.00);
   - the subquery also works for `stringing_order` and `preorder` payments.
-- [ ] T027 [P] [US4] Write summary tests for `customer_summary()` in
+- [X] T027 [P] [US4] Write summary tests for `customer_summary()` in
   `backend/customers/tests/test_selectors.py`, against hand-computed values:
   - drafts are excluded from counts and totals; cancelled sales count but add nothing to spent
     or outstanding;
@@ -261,7 +261,7 @@ endpoint lists its record newest first with the right amounts.
   - stringing total = price − discount; pre-order total = quantity × unit price;
   - the open pre-order and unfinished stringing counts are correct;
   - a customer with no history gets zeros.
-- [ ] T028 [P] [US4] Write API tests in `backend/customers/tests/test_api.py`:
+- [X] T028 [P] [US4] Write API tests in `backend/customers/tests/test_api.py`:
   - detail includes `summary` per the contract;
   - `GET /api/customers/{id}/sales/`, `/stringing-orders/` and `/preorders/`:
     - row shapes per the contract, newest-first order, pagination, drafts excluded from sales;
@@ -272,23 +272,23 @@ endpoint lists its record newest first with the right amounts.
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Create `backend/sales/selectors.py` with `net_paid_expression(prefix="")` and
+- [X] T029 [US4] Create `backend/sales/selectors.py` with `net_paid_expression(prefix="")` and
   `net_paid_subquery(order_field)` per research R3. Both are Decimal-typed and count only posted
   payments (receipts positive, refunds negative). Point `Sale.amount_paid`'s docstring in
   `backend/sales/models.py` at it as the canonical rule.
-- [ ] T030 [US4] Implement `customer_summary(customer)` in `backend/customers/selectors.py`, per
+- [X] T030 [US4] Implement `customer_summary(customer)` in `backend/customers/selectors.py`, per
   data-model.md "Derived: Customer Summary", using `net_paid_expression`. Use a fixed number of
   aggregate queries and Decimal output fields.
-- [ ] T031 [US4] Implement `sales_history(customer)`, `stringing_history(customer)` and
+- [X] T031 [US4] Implement `sales_history(customer)`, `stringing_history(customer)` and
   `preorder_history(customer)` querysets in `backend/customers/selectors.py`, per data-model.md
   "Derived: history rows":
   - annotate `amount_paid`/`balance`/`total_amount` with `net_paid_subquery` and F expressions;
   - use `select_related("product")` for pre-orders;
   - order newest first.
-- [ ] T032 [US4] Add `CustomerSummarySerializer`, `CustomerSaleHistorySerializer`,
+- [X] T032 [US4] Add `CustomerSummarySerializer`, `CustomerSaleHistorySerializer`,
   `CustomerStringingHistorySerializer` and `CustomerPreorderHistorySerializer` (read-only) to
   `backend/customers/serializers.py`. Add a `summary` field to `CustomerDetailSerializer`.
-- [ ] T033 [US4] Add `CustomerSalesView`, `CustomerStringingOrdersView` and `CustomerPreordersView`
+- [X] T033 [US4] Add `CustomerSalesView`, `CustomerStringingOrdersView` and `CustomerPreordersView`
   (paginated `ListAPIView`s, 404 for unknown customers) to `backend/customers/views.py`. Pass
   `customer_summary` into detail responses (GET, POST, PATCH). Register `<int:pk>/sales/`,
   `<int:pk>/stringing-orders/` and `<int:pk>/preorders/` in `backend/customers/urls.py`.
@@ -314,7 +314,7 @@ endpoint lists its record newest first with the right amounts.
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T034 [P] [US5] Write service tests in `backend/customers/tests/test_services.py`:
+- [X] T034 [P] [US5] Write service tests in `backend/customers/tests/test_services.py`:
   - `archive_customer` / `reactivate_customer`: state rules (archiving twice → error; reactivating
     an active customer → error); audit events with the correct `action`, `performed_by` and
     `customer_name` (data-model.md `CustomerAuditEvent.*`);
@@ -326,19 +326,19 @@ endpoint lists its record newest first with the right amounts.
     - allowed for an archived customer with no history;
     - writes a `DELETED` event with `customer_ref` and `customer_name` before the row is removed;
   - `ensure_usable` raises for archived customers.
-- [ ] T035 [P] [US5] Write a delete-race test (`TransactionTestCase`, two threads) in
+- [X] T035 [P] [US5] Write a delete-race test (`TransactionTestCase`, two threads) in
   `backend/customers/tests/test_concurrency.py`. One thread deletes a no-history customer while the
   other creates a draft sale for them. Assert that either the delete is refused or the sale
   fails, never a deleted customer with a sale (research R6).
-- [ ] T036 [P] [US5] Extend `backend/sales/tests/test_services.py`: `finalize_sale` refuses a draft
+- [X] T036 [P] [US5] Extend `backend/sales/tests/test_services.py`: `finalize_sale` refuses a draft
   whose customer was archived after the draft was created; `create_draft_sale` and
   `update_draft_sale` still refuse archived customers via `ensure_usable`. Assert that
   `finalize_sale` for a sale with a customer runs the same number of queries as for a walk-in sale
   with the same items, plus at most 1 (plan.md checkout-path impact).
-- [ ] T037 [P] [US5] Write admin form tests in `backend/customers/tests/test_admin_forms.py`.
+- [X] T037 [P] [US5] Write admin form tests in `backend/customers/tests/test_admin_forms.py`.
   The stringing order and pre-order admin forms reject a newly chosen archived customer, but
   still save edits to an existing order whose customer was archived later.
-- [ ] T038 [P] [US5] Write API tests in `backend/customers/tests/test_api.py`:
+- [X] T038 [P] [US5] Write API tests in `backend/customers/tests/test_api.py`:
   - archive/reactivate: 200 with `is_active` and `last_archive_event`; 400 for the wrong state;
     403 without `archive_customer`;
   - `DELETE`: 204 or 400 (has history); 403 without `delete_customer`, including for a user who
@@ -348,11 +348,11 @@ endpoint lists its record newest first with the right amounts.
 
 ### Implementation for User Story 5
 
-- [ ] T039 [P] [US5] Change data-model.md `Sale.customer` to `on_delete=PROTECT` (still nullable)
+- [X] T039 [P] [US5] Change data-model.md `Sale.customer` to `on_delete=PROTECT` (still nullable)
   in `backend/sales/models.py`, and generate `backend/sales/migrations/0004_*.py`.
-- [ ] T040 [P] [US5] Change data-model.md `StringingOrder.customer` to `on_delete=PROTECT` (still
+- [X] T040 [P] [US5] Change data-model.md `StringingOrder.customer` to `on_delete=PROTECT` (still
   nullable) in `backend/stringing/models.py`, and generate `backend/stringing/migrations/0002_*.py`.
-- [ ] T041 [US5] Implement `ensure_usable(customer)`, `archive_customer(customer_id, user)`,
+- [X] T041 [US5] Implement `ensure_usable(customer)`, `archive_customer(customer_id, user)`,
   `reactivate_customer(customer_id, user)` and `delete_customer(customer_id, user)` in
   `backend/customers/services.py`:
   - give each function a docstring stating its side effects (audit events, deletion);
@@ -362,17 +362,17 @@ endpoint lists its record newest first with the right amounts.
   - write `CustomerAuditEvent` rows using data-model.md `CustomerAuditEvent.action`,
     `CustomerAuditEvent.customer_ref`, `CustomerAuditEvent.customer_name` and
     `CustomerAuditEvent.performed_by`.
-- [ ] T042 [US5] In `backend/sales/services.py`, replace the inline "customer is archived" checks in
+- [X] T042 [US5] In `backend/sales/services.py`, replace the inline "customer is archived" checks in
   `create_draft_sale` and `update_draft_sale` with `customers.services.ensure_usable`, and call it
   in `finalize_sale` when the sale has a customer.
-- [ ] T043 [P] [US5] Add a `ModelAdmin` with form validation to `backend/stringing/admin.py` and
+- [X] T043 [P] [US5] Add a `ModelAdmin` with form validation to `backend/stringing/admin.py` and
   `backend/preorders/admin.py`. The form calls `ensure_usable` only when `customer` is new or
   changed (research R9).
-- [ ] T044 [US5] Add `last_archive_event` (latest `ARCHIVED`/`REACTIVATED` `CustomerAuditEvent` for
+- [X] T044 [US5] Add `last_archive_event` (latest `ARCHIVED`/`REACTIVATED` `CustomerAuditEvent` for
   the customer, with `performed_by_name`) to `CustomerDetailSerializer` in
   `backend/customers/serializers.py`, with a selector `last_archive_event(customer)` in
   `backend/customers/selectors.py`.
-- [ ] T045 [US5] Add the following to `backend/customers/views.py`:
+- [X] T045 [US5] Add the following to `backend/customers/views.py`:
   - `ArchiveCustomerView` and `ReactivateCustomerView`, requiring `customers.archive_customer`;
   - DELETE on `CustomerDetailView`, requiring `customers.delete_customer` and calling
     `delete_customer` (204 on success, 400 on history).
@@ -387,22 +387,22 @@ endpoint lists its record newest first with the right amounts.
 
 **Purpose**: Workflow coverage, admin, and final validation
 
-- [ ] T046 [P] Write the story-level workflow test in `backend/customers/tests/test_workflow.py`,
+- [X] T046 [P] Write the story-level workflow test in `backend/customers/tests/test_workflow.py`,
   per quickstart.md: create → find by phone variants → edit → finalize and partly pay a sale →
   check summary and history → archive (new sale refused) → reactivate → delete refused → delete a
   no-history customer → audit event exists.
-- [ ] T047 [P] Register `Customer` (search on name and phone, filter on `is_active`, normalized phone
+- [X] T047 [P] Register `Customer` (search on name and phone, filter on `is_active`, normalized phone
   read-only) and `CustomerAuditEvent` (fully read-only: no add, change or delete permissions) in
   `backend/customers/admin.py`.
-- [ ] T048 Run `.venv/bin/ruff check .`, `manage.py makemigrations --check --dry-run` and
+- [X] T048 Run `.venv/bin/ruff check .`, `manage.py makemigrations --check --dry-run` and
   `manage.py test customers sales inventory catalog` from `backend/`. Fix any failures.
-- [ ] T049 Run the manual smoke test and the **required** performance check in
+- [X] T049 Run the manual smoke test and the **required** performance check in
   `specs/001-customer-management/quickstart.md`. Record the measured timings for SC-002 and SC-004
   in the PR description.
 
 ---
 
-- [ ] T050 [P] Write an authentication sweep in `backend/customers/tests/test_auth.py`. Loop over
+- [X] T050 [P] Write an authentication sweep in `backend/customers/tests/test_auth.py`. Loop over
   every endpoint and method in contracts/customers-api.md (list/create, detail GET/PATCH/DELETE,
   archive, reactivate, the three history lists, phone-matches) and assert that each returns
   401/403 unauthenticated and changes no data. This satisfies constitution Principle II for every
