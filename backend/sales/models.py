@@ -122,6 +122,9 @@ class Sale(models.Model):
         """
         Net amount received: posted receipts minus posted refunds.
 
+        This is the canonical "net paid" rule; ``sales.selectors`` applies the
+        same rule in the database for lists and summaries.
+
         Iterates ``payments.all()`` so a ``prefetch_related("payments")``
         on the queryset is reused instead of issuing a query per sale.
         """
