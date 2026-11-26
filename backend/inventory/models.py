@@ -1,7 +1,5 @@
 from django.conf import settings
 from django.db import models
-from django.db.models import Q, F
-
 
 # Create your models here.
 
@@ -72,7 +70,8 @@ class InventoryMovement(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(
-                    quantity_after=models.F("quantity_before") + models.F("quantity_change")
+                    quantity_after=models.F("quantity_before")
+                    + models.F("quantity_change")
                 ),
                 name="inventory_movement_balance_matches"
             ),

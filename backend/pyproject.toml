@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["*/migrations/*", ".venv"]
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: import sorting, B: bugbear,
+# UP: pyupgrade, DJ: Django-specific checks
+select = ["E", "W", "F", "I", "B", "UP", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = ["E501"]
+"*/tests.py" = ["E501"]
+# Django-generated validator paths exceed the line limit.
+"config/settings.py" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"

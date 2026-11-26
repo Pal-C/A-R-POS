@@ -3,14 +3,12 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-
 from rest_framework.test import APITestCase
 
 from catalog.models import Product
 from customers.models import Customer
-from sales.models import Sale, SaleItem, Payment
 from inventory.models import InventoryMovement
-
+from sales.models import Payment, Sale
 
 User = get_user_model()
 

@@ -8,11 +8,10 @@ from django.test import TestCase
 from catalog.models import Product
 from inventory.models import InventoryMovement
 from inventory.services import (
-    restock_product,
     adjust_stock,
+    restock_product,
     reverse_movement,
 )
-
 
 User = get_user_model()
 

@@ -1,6 +1,7 @@
 """Validate incoming data and format API responses"""
 
 from rest_framework import serializers
+
 from .models import Product
 
 

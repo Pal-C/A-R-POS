@@ -1,5 +1,5 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 
 # Create your models here.
 
@@ -82,6 +82,9 @@ class StringingOrder(models.Model):
     permissions = [
         ("manage_stringing_orders", "Can manage stringing orders")
     ]
+
+    def __str__(self):
+        return self.order_number
 
     @property
     def total_amount(self):

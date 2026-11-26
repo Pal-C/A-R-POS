@@ -2,14 +2,14 @@
 from django.urls import path
 
 from inventory.views import (
-    InventoryMovementListView,
     InventoryMovementDetailView,
-    RestockView,
-    StockAdjustmentView,
-    ReverseInventoryMovementView,
+    InventoryMovementListView,
+    InventorySummaryView,
     LowStockProductsView,
     OutOfStockProductsView,
-    InventorySummaryView,
+    RestockView,
+    ReverseInventoryMovementView,
+    StockAdjustmentView,
 )
 
 urlpatterns = [

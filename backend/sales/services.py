@@ -11,9 +11,9 @@ from inventory.services import (
     deduct_stock_for_sale,
     reverse_movement,
 )
-from sales.models import Sale, SaleItem, Payment
-from stringing.models import StringingOrder
 from preorders.models import PreOrder
+from sales.models import Payment, Sale, SaleItem
+from stringing.models import StringingOrder
 
 
 @transaction.atomic

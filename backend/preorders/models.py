@@ -65,6 +65,9 @@ class PreOrder(models.Model):
         ("manage_preorders", "Can manage preorders")
     ]
 
+    def __str__(self):
+        return self.order_number
+
     @property
     def total_amount(self):
         return self.quantity * self.agreed_unit_price
