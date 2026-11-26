@@ -534,3 +534,52 @@ class ArchivedCustomerSaleTests(SalesServiceTestCase):
         walk_in = finalize_queries(None)
         with_customer = finalize_queries(self.customer)
         self.assertLessEqual(with_customer - walk_in, 1)
+
+
+class StringingPaymentSyncTests(TestCase):
+    """record_payment keeps a stringing order's paid_in_full_at current
+    (stringing research R2) without adding queries to sale payments."""
+
+    def test_stringing_payment_through_sales_service_updates_paid_in_full(self):
+        from stringing.tests.factories import make_order
+
+        user = make_user()
+        order = make_order(user)  # total 400
+        record_payment(
+            user=user,
+            amount=Decimal("400.00"),
+            payment_method=Payment.Method.CASH,
+            stringing_order=order,
+        )
+        order.refresh_from_db()
+        self.assertIsNotNone(order.paid_in_full_at)
+
+        process_refund(
+            user=user,
+            amount=Decimal("10.00"),
+            payment_method=Payment.Method.CASH,
+            reason="Adjust",
+            stringing_order=order,
+        )
+        order.refresh_from_db()
+        self.assertIsNone(order.paid_in_full_at)
+
+    def test_sale_payment_query_count_unchanged(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        user = make_user()
+        sale = create_draft_sale(user=user, items=[line(make_product(), 1)])
+        sale = finalize_sale(sale.pk, user)
+        with CaptureQueriesContext(connection) as ctx:
+            record_payment(
+                user=user,
+                amount=Decimal("100.00"),
+                payment_method=Payment.Method.CASH,
+                sale=sale,
+            )
+        sql = [q["sql"] for q in ctx.captured_queries if "SAVEPOINT" not in q["sql"]]
+        # Lock sale, net received, insert payment, update status; nothing
+        # from the stringing app.
+        self.assertEqual(len(sql), 4, sql)
+        self.assertFalse(any("stringing" in q.split(" FROM ")[-1][:40] for q in sql))

@@ -59,17 +59,37 @@ def make_finalized_sale(customer, user, *, items=None, paid=None):
 
 
 def make_stringing_order(customer, user, **overrides):
+    """Delegates to the stringing factory so orders get real order numbers."""
+    from stringing.tests.factories import make_order
+
+    overrides.pop("order_number", None)
+    status = overrides.pop("status", None)
     values = {
-        "order_number": f"STR-{_next():05d}",
         "customer": customer,
         "racket_description": "Test racket",
         "string_type": "BG66",
         "tension": "26 lbs",
         "service_price": Decimal("450.00"),
-        "created_by": user,
+        "discount_amount": Decimal("0.00"),
+        "direct_cost": Decimal("0.00"),
     }
     values.update(overrides)
-    return StringingOrder.objects.create(**values)
+    order = make_order(user, **values)
+    if status is not None:
+        # History tests only need the status value; bypass the workflow.
+        extra = {}
+        if status == StringingOrder.Status.COMPLETED:
+            extra["completed_at"] = order.created_at
+        if status == StringingOrder.Status.CANCELLED:
+            extra.update(
+                cancelled_at=order.created_at,
+                cancelled_by=user,
+                cancellation_reason="Test cancellation",
+                paid_in_full_at=None,
+            )
+        StringingOrder.objects.filter(pk=order.pk).update(status=status, **extra)
+        order.refresh_from_db()
+    return order
 
 
 def make_preorder(customer, user, **overrides):

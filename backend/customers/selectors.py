@@ -110,9 +110,16 @@ def customer_summary(customer):
         sale__customer=customer, sale__status__in=OPEN_SALE_STATUSES
     ).aggregate(net=net_paid_expression())["net"]
 
+    # Settled stringing orders (completed and paid in full) owe nothing, even
+    # after a refund made after pickup (stringing FR-028). Legacy completed
+    # orders never paid in full keep their real balance.
+    stringing_settled = Q(
+        status=StringingOrder.Status.COMPLETED, paid_in_full_at__isnull=False
+    )
+    stringing_open = ~Q(status=StringingOrder.Status.CANCELLED) & ~stringing_settled
     stringing = StringingOrder.objects.filter(customer=customer).aggregate(
         count=Count("id"),
-        owed=_sum(STRINGING_TOTAL, filter=not_cancelled),
+        owed=_sum(STRINGING_TOTAL, filter=stringing_open),
         unfinished=Count(
             "id",
             filter=~Q(
@@ -127,6 +134,9 @@ def customer_summary(customer):
         stringing_order__customer=customer
     ).exclude(
         stringing_order__status=StringingOrder.Status.CANCELLED
+    ).exclude(
+        stringing_order__status=StringingOrder.Status.COMPLETED,
+        stringing_order__paid_in_full_at__isnull=False,
     ).aggregate(net=net_paid_expression())["net"]
 
     preorders = PreOrder.objects.filter(customer=customer).aggregate(

@@ -23,9 +23,10 @@ D = Decimal
 
 class SalesWorkflowAPITests(APITestCase):
     def setUp(self):
-        self.cashier = make_user(username="cashier")
+        self.cashier = make_user(username="cashier", permissions=["record_payment"])
         self.manager = make_user(
-            username="manager", permissions=["cancel_sale", "process_refund"]
+            username="manager",
+            permissions=["cancel_sale", "process_refund", "record_payment"],
         )
         self.customer = make_customer(full_name="Ana Reyes")
         self.racket = make_product(name="Racket", stock_quantity=10)  # 1500/1000

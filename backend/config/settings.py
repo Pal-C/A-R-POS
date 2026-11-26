@@ -136,6 +136,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Store-local time zone for business dates (e.g. report date ranges).
+# Storage stays UTC.
+STORE_TIME_ZONE = os.getenv("STORE_TIME_ZONE", "Asia/Manila")
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/

@@ -23,6 +23,7 @@ from sales.services import cancel_sale, finalize_sale, remove_sale_item
 
 CANCEL_PERMISSION = "sales.cancel_sale"
 REFUND_PERMISSION = "sales.process_refund"
+RECORD_PAYMENT_PERMISSION = "sales.record_payment"
 
 
 def handle_service_validation_error(exc):
@@ -218,11 +219,13 @@ class PaymentListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        if (
+        is_refund = (
             serializer.validated_data["payment_type"] == Payment.PaymentType.REFUND
-            and not request.user.has_perm(REFUND_PERMISSION)
-        ):
+        )
+        if is_refund and not request.user.has_perm(REFUND_PERMISSION):
             raise PermissionDenied("You do not have permission to process refunds.")
+        if not is_refund and not request.user.has_perm(RECORD_PAYMENT_PERMISSION):
+            raise PermissionDenied("You do not have permission to record payments.")
 
         payment = run_service(serializer.save)
 
