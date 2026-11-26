@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -80,9 +81,9 @@ class Sale(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-        models.Index(fields=["status", "-created_at"]),
-        models.Index(fields=["customer", "-created_at"]),
-    ]
+            models.Index(fields=["status", "-created_at"]),
+            models.Index(fields=["customer", "-created_at"]),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(subtotal__gte=0),
@@ -101,31 +102,52 @@ class Sale(models.Model):
                 name="sale_discount_not_above_subtotal"
             )
         ]
-    permissions = [
-        ("finalize_sale", "Can finalize sales"),
-        ("cancel_sale", "Can cancel finalized sales"),
-        ("apply_sale_discount", "Can apply sale discounts"),
-        ("view_sales_reports", "Can view sales reports"),
-    ]
+        permissions = [
+            ("finalize_sale", "Can finalize sales"),
+            ("cancel_sale", "Can cancel finalized sales"),
+            ("apply_sale_discount", "Can apply sale discounts"),
+            ("view_sales_reports", "Can view sales reports"),
+        ]
 
     def __str__(self):
         return self.sale_number or f"Sale #{self.pk}"
 
     @property
+    def item_discount_total(self):
+        """Sum of line-level discounts, derived from the stored totals."""
+        return self.subtotal - self.discount_amount - self.total_amount
+
+    @property
     def amount_paid(self):
+        """
+        Net amount received: posted receipts minus posted refunds.
+
+        Iterates ``payments.all()`` so a ``prefetch_related("payments")``
+        on the queryset is reused instead of issuing a query per sale.
+        """
         return sum(
             (
-                p.amount if p.payment_type == Payment.PaymentType.RECEIPT
-                else -p.amount
+                payment.amount
+                if payment.payment_type == Payment.PaymentType.RECEIPT
+                else -payment.amount
             )
-            for p in self.payments.filter(
-                status=Payment.Status.POSTED
-            )
-        )
+            for payment in self.payments.all()
+            if payment.status == Payment.Status.POSTED
+        ) or Decimal("0.00")
 
     @property
     def balance(self):
-        return self.total_amount - self.amount_paid
+        """Amount the customer still owes. Zero for drafts and cancelled sales."""
+        if self.status in (self.Status.DRAFT, self.Status.CANCELLED):
+            return Decimal("0.00")
+        return max(self.total_amount - self.amount_paid, Decimal("0.00"))
+
+    @property
+    def refund_due(self):
+        """Money still to be returned to the customer for a cancelled sale."""
+        if self.status != self.Status.CANCELLED:
+            return Decimal("0.00")
+        return max(self.amount_paid, Decimal("0.00"))
 
 # SaleItem --------------------------------------------------
 class SaleItem(models.Model):
@@ -252,7 +274,7 @@ class Payment(models.Model):
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        validators=[MinValueValidator(0.01)]
+        validators=[MinValueValidator(Decimal("0.01"))]
     )
 
     payment_method = models.CharField(
@@ -315,10 +337,10 @@ class Payment(models.Model):
                 name="payment_exactly_one_order"
             ),
         ]
-    permissions = [
-        ("record_payment", "Can record payments"),
-        ("process_refund", "Can process refunds")
-    ]
+        permissions = [
+            ("record_payment", "Can record payments"),
+            ("process_refund", "Can process refunds"),
+        ]
 
     def __str__(self):
         return f"{self.payment_type}: ₱{self.amount}"

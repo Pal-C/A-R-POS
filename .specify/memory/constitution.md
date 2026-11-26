@@ -14,9 +14,6 @@ Sync Impact Report
 - Removed sections: none in substance (all v1.0.0 rules retained, relocated as noted)
 - Templates: not modified by this command (they read the constitution at runtime)
 - Follow-up TODOs:
-  - backend/config/settings.py hardcodes SECRET_KEY and DEBUG=True (violates security
-    constraints); fix in a separate change.
-  - Backend has no linter/formatter configured yet; Principle I requires one (ruff suggested).
   - Performance budgets in Principle IV are initial targets; revisit once real usage data exists.
   - Frontend is still the Vite scaffold; shared UI components required by Principle III do not
     exist yet.
