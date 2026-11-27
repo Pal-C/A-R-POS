@@ -1,4 +1,3 @@
-
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -12,7 +11,6 @@ User = get_user_model()
 
 
 class ProductAPITests(APITestCase):
-
     def setUp(self):
         self.user = User.objects.create_superuser(
             username="testadmin",
@@ -57,9 +55,7 @@ class ProductAPITests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(
-            Product.objects.filter(sku="LI-NING-001").exists()
-        )
+        self.assertTrue(Product.objects.filter(sku="LI-NING-001").exists())
 
         product = Product.objects.get(sku="LI-NING-001")
         self.assertEqual(product.stock_quantity, 0)
@@ -126,7 +122,11 @@ class ProductAPITests(APITestCase):
 
         response = self.client.patch(
             url,
-            {"selling_price": "4800.00"},
+            {
+                "changes": {"selling_price": "4800.00"},
+                "expected": {"selling_price": "4500.00"},
+                "reason": "Price update",
+            },
             format="json",
         )
 
@@ -135,7 +135,9 @@ class ProductAPITests(APITestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.selling_price, Decimal("4800.00"))
 
-    def test_stock_quantity_cannot_be_updated_through_product_api(self):
+    def test_flat_patch_without_reason_is_rejected(self):
+        # Edits now carry changes/expected/reason (specs/005-ui-design); a flat body
+        # can no longer change stock or anything else.
         url = reverse(
             "product-detail",
             args=[self.product.id],
@@ -147,7 +149,7 @@ class ProductAPITests(APITestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         self.product.refresh_from_db()
 
@@ -161,7 +163,7 @@ class ProductAPITests(APITestCase):
             args=[self.product.id],
         )
 
-        response = self.client.post(url)
+        response = self.client.post(url, {"reason": "Discontinued"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -177,7 +179,7 @@ class ProductAPITests(APITestCase):
             args=[self.product.id],
         )
 
-        response = self.client.post(url)
+        response = self.client.post(url, {"reason": "Back in range"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -197,9 +199,7 @@ class ProductAPITests(APITestCase):
             status.HTTP_405_METHOD_NOT_ALLOWED,
         )
 
-        self.assertTrue(
-            Product.objects.filter(pk=self.product.id).exists()
-        )
+        self.assertTrue(Product.objects.filter(pk=self.product.id).exists())
 
     # FILTERING AND SEARCH
 
@@ -251,5 +251,5 @@ class ProductAPITests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            401  # unauthenticated (accounts.authentication)
+            401,  # unauthenticated (accounts.authentication)
         )
