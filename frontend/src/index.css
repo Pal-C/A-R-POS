@@ -1,6 +1,0 @@
-/* Minimal global styles. Visual design is deferred to the design feature. */
-html,
-body,
-#root {
-  min-height: 100%;
-}
