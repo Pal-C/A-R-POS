@@ -4,31 +4,26 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models.functions import Length, Trim
+from django.db.models.lookups import GreaterThan
 from django.utils import timezone
 
 # Create your models here.
 
-#Sale --------------------------------------------------
-class Sale(models.Model):
 
+# Sale --------------------------------------------------
+class Sale(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         PENDING_PAYMENT = "PENDING_PAYMENT", "Pending Payment"
         COMPLETED = "COMPLETED", "Completed"
         CANCELLED = "CANCELLED", "Cancelled"
 
-    sale_number = models.CharField(
-        max_length=30,
-        unique=True,
-        null=True,
-        blank=True
-    )
+    sale_number = models.CharField(max_length=30, unique=True, null=True, blank=True)
 
     # Used to identify repeated offline submissions.
     client_transaction_id = models.UUIDField(
-        default=uuid.uuid4,
-        unique=True,
-        editable=False
+        default=uuid.uuid4, unique=True, editable=False
     )
 
     # PROTECT: a customer with sales can never be deleted (customers FR-019).
@@ -37,32 +32,20 @@ class Sale(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="sales"
+        related_name="sales",
     )
-
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="created_sales"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_sales"
     )
 
-    subtotal = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
-    discount_amount = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
-    total_amount = models.DecimalField(
-        max_digits=12, decimal_places=2, default=0
-    )
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.DRAFT
+        max_length=20, choices=Status.choices, default=Status.DRAFT
     )
-
 
     created_at = models.DateTimeField(auto_now_add=True)
     finalized_at = models.DateTimeField(null=True, blank=True)
@@ -73,41 +56,53 @@ class Sale(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="cancelled_sales"
+        related_name="cancelled_sales",
     )
     cancellation_reason = models.TextField(blank=True)
 
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Store-local business date (specs/006 R3). Null for drafts; set at
+    # finalization; may be earlier than finalized_at only when backdated.
+    sale_date = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["status", "-created_at"]),
             models.Index(fields=["customer", "-created_at"]),
+            # Matches the sales list ordering (null dates of drafts sort first
+            # under DESC, PostgreSQL's default).
+            models.Index(
+                fields=["-sale_date", "-created_at", "-id"], name="sale_date_list_idx"
+            ),
         ]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(subtotal__gte=0),
-                name="sale_subtotal_nonnegative"
+                condition=models.Q(subtotal__gte=0), name="sale_subtotal_nonnegative"
             ),
             models.CheckConstraint(
                 condition=models.Q(discount_amount__gte=0),
-                name="sale_discount_nonnegative"
+                name="sale_discount_nonnegative",
             ),
             models.CheckConstraint(
-                condition=models.Q(total_amount__gte=0),
-                name="sale_total_nonnegative"
+                condition=models.Q(total_amount__gte=0), name="sale_total_nonnegative"
             ),
             models.CheckConstraint(
                 condition=models.Q(discount_amount__lte=models.F("subtotal")),
-                name="sale_discount_not_above_subtotal"
-            )
+                name="sale_discount_not_above_subtotal",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status="DRAFT") | models.Q(sale_date__isnull=False),
+                name="sale_date_required_when_finalized",
+            ),
         ]
         permissions = [
             ("finalize_sale", "Can finalize sales"),
             ("cancel_sale", "Can cancel finalized sales"),
             ("apply_sale_discount", "Can apply sale discounts"),
             ("view_sales_reports", "Can view sales reports"),
+            ("backdate_sale", "Can record sales with a past date"),
         ]
 
     def __str__(self):
@@ -153,64 +148,50 @@ class Sale(models.Model):
             return Decimal("0.00")
         return max(self.amount_paid, Decimal("0.00"))
 
+
 # SaleItem --------------------------------------------------
 class SaleItem(models.Model):
-
-    sale = models.ForeignKey(
-        Sale,
-        on_delete=models.PROTECT,
-        related_name="items"
-    )
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="items")
 
     product = models.ForeignKey(
-        "catalog.Product",
-        on_delete=models.PROTECT,
-        related_name="sale_items"
+        "catalog.Product", on_delete=models.PROTECT, related_name="sale_items"
     )
 
     quantity = models.PositiveIntegerField()
 
     # Historical price snapshots:
-    unit_selling_price = models.DecimalField(
-        max_digits=10, decimal_places=2
-    )
-    unit_cost_price = models.DecimalField(
-        max_digits=10, decimal_places=2
-    )
+    unit_selling_price = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_cost_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     # Discount applied to this individual line.
-    discount_amount = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0
-    )
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(quantity__gt=0),
-                name="sale_item_quantity_positive"
+                condition=models.Q(quantity__gt=0), name="sale_item_quantity_positive"
             ),
             models.CheckConstraint(
                 condition=models.Q(unit_selling_price__gte=0),
-                name="sale_selling_price_nonnegative"
+                name="sale_selling_price_nonnegative",
             ),
             models.CheckConstraint(
                 condition=models.Q(unit_cost_price__gte=0),
-                name="sale_cost_price_nonnegative"
+                name="sale_cost_price_nonnegative",
             ),
             models.CheckConstraint(
                 condition=models.Q(discount_amount__gte=0),
-                name="sale_item_discount_nonnegative"
+                name="sale_item_discount_nonnegative",
             ),
             models.CheckConstraint(
                 condition=models.Q(
                     discount_amount__lte=(
-                        models.F("quantity") *
-                        models.F("unit_selling_price")
+                        models.F("quantity") * models.F("unit_selling_price")
                     )
                 ),
-                name="saleitem_discount_not_above_subtotal"
+                name="saleitem_discount_not_above_subtotal",
             ),
         ]
 
@@ -227,14 +208,11 @@ class SaleItem(models.Model):
 
     @property
     def gross_profit(self):
-        return (
-            self.line_total
-            - (self.quantity * self.unit_cost_price)
-        )
+        return self.line_total - (self.quantity * self.unit_cost_price)
+
 
 # Payment --------------------------------------------------
 class Payment(models.Model):
-
     class Method(models.TextChoices):
         CASH = "CASH", "Cash"
         GCASH = "GCASH", "GCash"
@@ -252,11 +230,7 @@ class Payment(models.Model):
         VOIDED = "VOIDED", "Voided"
 
     sale = models.ForeignKey(
-        Sale,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="payments"
+        Sale, on_delete=models.PROTECT, null=True, blank=True, related_name="payments"
     )
 
     stringing_order = models.ForeignKey(
@@ -264,7 +238,7 @@ class Payment(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="payments"
+        related_name="payments",
     )
 
     preorder = models.ForeignKey(
@@ -272,43 +246,32 @@ class Payment(models.Model):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
-        related_name="payments"
+        related_name="payments",
     )
 
     amount = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        validators=[MinValueValidator(Decimal("0.01"))]
+        max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )
 
-    payment_method = models.CharField(
-        max_length=20,
-        choices=Method.choices
-    )
+    payment_method = models.CharField(max_length=20, choices=Method.choices)
 
     payment_type = models.CharField(
-        max_length=10,
-        choices=PaymentType.choices,
-        default=PaymentType.RECEIPT
+        max_length=10, choices=PaymentType.choices, default=PaymentType.RECEIPT
     )
 
     status = models.CharField(
-        max_length=10,
-        choices=Status.choices,
-        default=Status.POSTED
+        max_length=10, choices=Status.choices, default=Status.POSTED
     )
 
     payment_date = models.DateTimeField(default=timezone.now)
 
-    reference_number = models.CharField(
-        max_length=100, blank=True
-    )
+    reference_number = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
 
     received_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="recorded_payments"
+        related_name="recorded_payments",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -317,28 +280,27 @@ class Payment(models.Model):
         ordering = ["-payment_date"]
         constraints = [
             models.CheckConstraint(
-                condition=models.Q(amount__gt=0),
-                name="payment_amount_positive"
+                condition=models.Q(amount__gt=0), name="payment_amount_positive"
             ),
             models.CheckConstraint(
                 condition=(
                     models.Q(
                         sale__isnull=False,
                         stringing_order__isnull=True,
-                        preorder__isnull=True
+                        preorder__isnull=True,
                     )
                     | models.Q(
                         sale__isnull=True,
                         stringing_order__isnull=False,
-                        preorder__isnull=True
+                        preorder__isnull=True,
                     )
                     | models.Q(
                         sale__isnull=True,
                         stringing_order__isnull=True,
-                        preorder__isnull=False
+                        preorder__isnull=False,
                     )
                 ),
-                name="payment_exactly_one_order"
+                name="payment_exactly_one_order",
             ),
         ]
         permissions = [
@@ -348,3 +310,32 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.payment_type}: ₱{self.amount}"
+
+
+class SaleEvent(models.Model):
+    """Append-only history of changes to a finalized sale (specs/006 R4)."""
+
+    class Action(models.TextChoices):
+        CUSTOMER_CHANGED = "CUSTOMER_CHANGED", "Customer changed"
+        BACKDATED = "BACKDATED", "Backdated"
+
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="events")
+    action = models.CharField(max_length=20, choices=Action.choices)
+    changes = models.JSONField(default=dict, blank=True)
+    reason = models.TextField()
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sale_events"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(GreaterThan(Length(Trim("reason")), 0)),
+                name="saleevent_reason_required",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.sale_id} {self.action} at {self.created_at:%Y-%m-%d %H:%M}"

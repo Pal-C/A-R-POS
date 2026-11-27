@@ -22,8 +22,10 @@ for unknown ids.
 """
 
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -36,7 +38,7 @@ from inventory.services import (
 )
 from preorders.models import PreOrder
 from preorders.services import sync_settlement as sync_preorder_settlement
-from sales.models import Payment, Sale, SaleItem
+from sales.models import Payment, Sale, SaleEvent, SaleItem
 from stringing.models import StringingOrder
 from stringing.services import sync_payment_state
 
@@ -49,6 +51,11 @@ _UNSET = object()
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def store_today():
+    """Today's date in the store's time zone (business dates; storage stays UTC)."""
+    return timezone.now().astimezone(ZoneInfo(settings.STORE_TIME_ZONE)).date()
 
 
 def _sale_reference(sale):
@@ -71,17 +78,13 @@ def _validate_line(*, product, quantity, discount_amount, unit_price):
         raise ValidationError(f"{product.name} is inactive and cannot be sold.")
 
     if quantity is None or quantity <= 0:
-        raise ValidationError(
-            f"Quantity for {product.name} must be greater than zero."
-        )
+        raise ValidationError(f"Quantity for {product.name} must be greater than zero.")
 
     if discount_amount < 0:
         raise ValidationError("Item discount cannot be negative.")
 
     if discount_amount > unit_price * quantity:
-        raise ValidationError(
-            f"Discount for {product.name} exceeds its line subtotal."
-        )
+        raise ValidationError(f"Discount for {product.name} exceeds its line subtotal.")
 
 
 def _recalculate_totals(sale):
@@ -121,14 +124,17 @@ def _recalculate_totals(sale):
 
 
 def _net_received(payments):
-    return sum(
-        (
-            payment.amount
-            if payment.payment_type == Payment.PaymentType.RECEIPT
-            else -payment.amount
+    return (
+        sum(
+            (
+                payment.amount
+                if payment.payment_type == Payment.PaymentType.RECEIPT
+                else -payment.amount
+            )
+            for payment in payments
         )
-        for payment in payments
-    ) or ZERO
+        or ZERO
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -386,16 +392,17 @@ def finalize_sale(sale_id, user):
         )
 
     sale.finalized_at = finalized_at
+    if sale.sale_date is None:
+        sale.sale_date = store_today()
     sale.status = (
-        Sale.Status.COMPLETED
-        if sale.total_amount == 0
-        else Sale.Status.PENDING_PAYMENT
+        Sale.Status.COMPLETED if sale.total_amount == 0 else Sale.Status.PENDING_PAYMENT
     )
 
     sale.save(
         update_fields=[
             "sale_number",
             "finalized_at",
+            "sale_date",
             "status",
             "updated_at",
         ]
@@ -456,17 +463,13 @@ def record_payment(
         target_field = "sale"
 
         if order.status == Sale.Status.DRAFT:
-            raise ValidationError(
-                "Payments can only be recorded for finalized sales."
-            )
+            raise ValidationError("Payments can only be recorded for finalized sales.")
 
         if order.status == Sale.Status.CANCELLED and is_receipt:
             raise ValidationError("Cannot receive payment for a cancelled sale.")
 
     elif stringing_order is not None:
-        order = StringingOrder.objects.select_for_update().get(
-            pk=stringing_order.pk
-        )
+        order = StringingOrder.objects.select_for_update().get(pk=stringing_order.pk)
         target_field = "stringing_order"
 
         if order.status == StringingOrder.Status.CANCELLED and is_receipt:
@@ -487,9 +490,7 @@ def record_payment(
         target_field = "preorder"
 
         if order.status == PreOrder.Status.CANCELLED and is_receipt:
-            raise ValidationError(
-                "Cannot receive payment for a cancelled pre-order."
-            )
+            raise ValidationError("Cannot receive payment for a cancelled pre-order.")
 
         # Fulfilled pre-orders are settled; money after handover is only
         # ever returned (pre-orders research R2).
@@ -598,9 +599,7 @@ def cancel_sale(*, sale_id, user, reason):
     sale = Sale.objects.select_for_update().get(pk=sale_id)
 
     if sale.status == Sale.Status.DRAFT:
-        raise ValidationError(
-            "Draft sales cannot be cancelled through this operation."
-        )
+        raise ValidationError("Draft sales cannot be cancelled through this operation.")
 
     if sale.status == Sale.Status.CANCELLED:
         raise ValidationError("This sale has already been cancelled.")
@@ -636,4 +635,227 @@ def cancel_sale(*, sale_id, user, reason):
         ]
     )
 
+    return sale
+
+
+BACKDATE_PERMISSION = "sales.backdate_sale"
+RECORD_PAYMENT_PERMISSION = "sales.record_payment"
+
+
+def _check_cart(items, discount_amount):
+    if not items:
+        raise ValidationError({"items": "Add at least one product."})
+    product_ids = [item["product"].pk for item in items]
+    if len(product_ids) != len(set(product_ids)):
+        raise ValidationError({"items": "Each product should appear only once."})
+    if discount_amount < 0:
+        raise ValidationError({"discount_amount": "Sale discount cannot be negative."})
+
+
+def _as_field_error(field, exc):
+    """Re-keys a plain ValidationError under ``field`` (dict errors pass through)."""
+    if hasattr(exc, "error_dict"):
+        return exc
+    return ValidationError({field: exc.messages})
+
+
+@transaction.atomic
+def replace_draft_cart(*, sale_id, items, customer=None, discount_amount=ZERO):
+    """Replaces a draft's lines, customer and sale discount in one step.
+
+    Side effects: locks the draft and its products (primary-key order); deletes
+    the old lines and snapshots current prices for the new ones. Drafts never
+    touch stock.
+    """
+    sale = _lock_draft_sale(sale_id)
+    _check_cart(items, discount_amount)
+    ensure_usable(customer)
+    products = {
+        product.pk: product
+        for product in Product.objects.select_for_update()
+        .filter(pk__in=[item["product"].pk for item in items])
+        .order_by("pk")
+    }
+    sale.items.all().delete()
+    sale.customer = customer
+    sale.discount_amount = ZERO
+    for item_data in items:
+        product = products[item_data["product"].pk]
+        item_discount = item_data.get("discount_amount", ZERO)
+        _validate_line(
+            product=product,
+            quantity=item_data["quantity"],
+            discount_amount=item_discount,
+            unit_price=product.selling_price,
+        )
+        SaleItem.objects.create(
+            sale=sale,
+            product=product,
+            quantity=item_data["quantity"],
+            unit_selling_price=product.selling_price,
+            unit_cost_price=product.cost_price,
+            discount_amount=item_discount,
+        )
+    sale.discount_amount = discount_amount
+    try:
+        _recalculate_totals(sale)
+    except ValidationError as exc:
+        raise _as_field_error("discount_amount", exc) from None
+    return sale
+
+
+@transaction.atomic
+def checkout_sale(
+    *,
+    user,
+    items,
+    customer=None,
+    discount_amount=ZERO,
+    draft_id=None,
+    sale_date=None,
+    backdate_reason="",
+    payment=None,
+    client_transaction_id=None,
+):
+    """Creates (or completes a draft), finalizes and optionally pays a sale at once.
+
+    Returns ``(sale, created)``. A repeated ``client_transaction_id`` returns the
+    existing sale with ``created=False`` and changes nothing (idempotent retry).
+
+    Side effects, all in one transaction: locks products in primary-key order,
+    deducts stock (SALE movements), assigns the sale number, sets ``sale_date``,
+    records the receipt when ``payment`` is given (needs ``sales.record_payment``)
+    and writes a BACKDATED event for past dates (needs ``sales.backdate_sale``
+    and a reason). Any failure leaves no trace.
+    """
+    if client_transaction_id:
+        existing = Sale.objects.filter(
+            client_transaction_id=client_transaction_id
+        ).first()
+        if existing:
+            # Only a finalized sale by the same user counts as a retry; anything
+            # else means the id was reused and must not hand back another sale.
+            if (
+                existing.created_by_id == user.pk
+                and existing.status != Sale.Status.DRAFT
+            ):
+                return existing, False
+            raise ValidationError(
+                {
+                    "client_transaction_id": (
+                        "This checkout id was already used. Start a new sale."
+                    )
+                }
+            )
+
+    today = store_today()
+    sale_date = sale_date or today
+    if sale_date > today:
+        raise ValidationError({"sale_date": "The date of sale can't be in the future."})
+    backdated = sale_date < today
+    if backdated:
+        if not user.has_perm(BACKDATE_PERMISSION):
+            raise PermissionDenied("You do not have permission to record past sales.")
+        if not (backdate_reason or "").strip():
+            raise ValidationError(
+                {"backdate_reason": "Explain why this sale has a past date."}
+            )
+    if payment and not user.has_perm(RECORD_PAYMENT_PERMISSION):
+        raise PermissionDenied("You do not have permission to record payments.")
+
+    _check_cart(items, discount_amount)
+    if draft_id:
+        try:
+            sale = replace_draft_cart(
+                sale_id=draft_id,
+                items=items,
+                customer=customer,
+                discount_amount=discount_amount,
+            )
+        except Sale.DoesNotExist:
+            raise ValidationError(
+                {"draft_id": "This draft no longer exists."}
+            ) from None
+    else:
+        try:
+            sale = create_draft_sale(
+                user=user,
+                items=items,
+                customer=customer,
+                discount_amount=discount_amount,
+            )
+        except ValidationError as exc:
+            raise _as_field_error("items", exc) from None
+
+    if client_transaction_id:
+        sale.client_transaction_id = client_transaction_id
+    sale.sale_date = sale_date
+    sale.save(update_fields=["client_transaction_id", "sale_date", "updated_at"])
+
+    try:
+        finalize_sale(sale.pk, user)
+    except ValidationError as exc:
+        raise _as_field_error("items", exc) from None
+
+    if payment:
+        sale.refresh_from_db()
+        if payment["amount"] > sale.total_amount:
+            raise ValidationError(
+                {
+                    "payment": (
+                        f"Amount paid can't exceed the total of {sale.total_amount}."
+                    )
+                }
+            )
+        try:
+            record_payment(
+                user=user,
+                amount=payment["amount"],
+                payment_method=payment["payment_method"],
+                sale=sale,
+                reference_number=payment.get("reference_number", ""),
+            )
+        except ValidationError as exc:
+            raise _as_field_error("payment", exc) from None
+
+    if backdated:
+        SaleEvent.objects.create(
+            sale=sale,
+            action=SaleEvent.Action.BACKDATED,
+            changes={"sale_date": [str(today), str(sale_date)]},
+            reason=backdate_reason.strip(),
+            performed_by=user,
+        )
+    return Sale.objects.get(pk=sale.pk), True
+
+
+@transaction.atomic
+def change_sale_customer(*, sale_id, user, customer, reason):
+    """Links or changes the customer of a finalized (not cancelled) sale.
+
+    Side effects: locks the sale; writes a CUSTOMER_CHANGED event with the old
+    and new customer ids and the reason. Nothing else about the sale changes.
+    """
+    if not (reason or "").strip():
+        raise ValidationError({"reason": "A reason is required."})
+    sale = Sale.objects.select_for_update().get(pk=sale_id)
+    if sale.status not in (Sale.Status.PENDING_PAYMENT, Sale.Status.COMPLETED):
+        raise ValidationError(
+            "Only completed or pending-payment sales can have their customer changed."
+        )
+    ensure_usable(customer)
+    if customer is None:
+        raise ValidationError({"customer_id": "Choose a customer."})
+    if sale.customer_id == customer.pk:
+        raise ValidationError({"customer_id": "This customer is already linked."})
+    old_customer_id = sale.customer_id
+    sale.customer = customer
+    sale.save(update_fields=["customer", "updated_at"])
+    SaleEvent.objects.create(
+        sale=sale,
+        action=SaleEvent.Action.CUSTOMER_CHANGED,
+        changes={"customer": [old_customer_id, customer.pk]},
+        reason=reason.strip(),
+        performed_by=user,
+    )
     return sale

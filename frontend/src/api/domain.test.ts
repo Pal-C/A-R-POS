@@ -63,6 +63,10 @@ const cases: Case[] = [
   ['sales.cancel', () => salesApi.cancel(4, { reason: 'Customer left' }), 'POST', '/api/sales/4/cancel/', {}, { reason: 'Customer left' }],
   ['sales.payments', () => salesApi.payments({ sale_id: 4 }), 'GET', '/api/sales/payments/', { sale_id: '4' }],
   ['sales.recordPayment', () => salesApi.recordPayment({ sale: 4, amount: '100.00', payment_method: 'CASH' }), 'POST', '/api/sales/payments/', {}, { sale: 4, amount: '100.00', payment_method: 'CASH' }],
+  ['sales.checkout', () => salesApi.checkout({ client_transaction_id: 'abc', items: [{ product_id: 1, quantity: 2 }] }), 'POST', '/api/sales/checkout/', {}, { client_transaction_id: 'abc', items: [{ product_id: 1, quantity: 2 }] }],
+  ['sales.saveDraft', () => salesApi.saveDraft({ items: [{ product_id: 1, quantity: 1 }] }), 'POST', '/api/sales/', {}, { items: [{ product_id: 1, quantity: 1 }] }],
+  ['sales.replaceDraft', () => salesApi.replaceDraft(4, { items: [{ product_id: 1, quantity: 1 }], customer_id: null }), 'PUT', '/api/sales/4/draft/', {}, { items: [{ product_id: 1, quantity: 1 }], customer_id: null }],
+  ['sales.changeCustomer', () => salesApi.changeCustomer(4, { customer_id: 12, reason: 'Receipt' }), 'POST', '/api/sales/4/customer/', {}, { customer_id: 12, reason: 'Receipt' }],
   // customers
   ['customers.list', () => customersApi.list({ status: 'archived', search: 'ana' }), 'GET', '/api/customers/', { status: 'archived', search: 'ana' }],
   ['customers.create', () => customersApi.create({ full_name: 'Ana' }), 'POST', '/api/customers/'],

@@ -56,7 +56,9 @@ interface BaseFieldProps {
 }
 
 export interface TextFieldProps extends BaseFieldProps {
-  type?: 'text' | 'email' | 'tel' | 'search'
+  type?: 'text' | 'email' | 'tel' | 'search' | 'date'
+  /** For date inputs: latest allowed value (YYYY-MM-DD). */
+  max?: string
   autoComplete?: string
   inputMode?: 'text' | 'numeric' | 'decimal' | 'tel'
   maxLength?: number

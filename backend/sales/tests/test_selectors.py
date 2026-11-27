@@ -76,7 +76,9 @@ class NetPaidTests(TestCase):
         total = Payment.objects.filter(sale__in=self.sales).aggregate(
             paid=net_paid_expression()
         )["paid"]
-        expected = sum((Sale.objects.get(pk=s.pk).amount_paid for s in self.sales), D(0))
+        expected = sum(
+            (Sale.objects.get(pk=s.pk).amount_paid for s in self.sales), D(0)
+        )
         self.assertEqual(total, expected)
         self.assertEqual(total, D("1800.00"))
 
@@ -106,6 +108,8 @@ class NetPaidTests(TestCase):
             D("450.00"),
         )
         self.assertEqual(
-            PreOrder.objects.annotate(p=net_paid_subquery("preorder")).get(pk=preorder.pk).p,
+            PreOrder.objects.annotate(p=net_paid_subquery("preorder"))
+            .get(pk=preorder.pk)
+            .p,
             D("2000.00"),
         )

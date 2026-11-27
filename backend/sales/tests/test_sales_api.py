@@ -1,4 +1,3 @@
-
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -15,7 +14,6 @@ User = get_user_model()
 
 
 class SalesAPITests(APITestCase):
-
     def setUp(self):
         self.user = User.objects.create_user(
             username="admin",
@@ -111,9 +109,7 @@ class SalesAPITests(APITestCase):
         self.assertEqual(self.product.stock_quantity, 10)
 
         self.assertFalse(
-            InventoryMovement.objects.filter(
-                sale_item__sale=sale
-            ).exists()
+            InventoryMovement.objects.filter(sale_item__sale=sale).exists()
         )
 
     def test_create_sale_without_items_is_rejected(self):
@@ -129,10 +125,12 @@ class SalesAPITests(APITestCase):
 
     def test_create_sale_with_duplicate_products_is_rejected(self):
         payload = self.sale_payload()
-        payload["items"].append({
-            "product_id": self.product.pk,
-            "quantity": 1,
-        })
+        payload["items"].append(
+            {
+                "product_id": self.product.pk,
+                "quantity": 1,
+            }
+        )
 
         response = self.client.post(
             self.sales_url,
@@ -204,9 +202,7 @@ class SalesAPITests(APITestCase):
         )
         sale_id = sale_response.data["id"]
 
-        response = self.client.get(
-            reverse("sale-detail", kwargs={"pk": sale_id})
-        )
+        response = self.client.get(reverse("sale-detail", kwargs={"pk": sale_id}))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data["items"]), 1)
@@ -397,9 +393,7 @@ class SalesAPITests(APITestCase):
         )
 
         self.assertEqual(
-            InventoryMovement.objects.filter(
-                reversal_of__sale_item__sale=sale
-            ).count(),
+            InventoryMovement.objects.filter(reversal_of__sale_item__sale=sale).count(),
             1,
         )
 

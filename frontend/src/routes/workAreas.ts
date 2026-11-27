@@ -3,7 +3,6 @@ import type { ComponentType } from 'react'
 import type { Paginated } from '../api/client'
 import { customerKeys, customersApi } from '../api/customers'
 import { preorderKeys, preordersApi } from '../api/preorders'
-import { saleKeys, salesApi } from '../api/sales'
 import { stringingApi, stringingKeys } from '../api/stringing'
 
 export interface WorkAreaPageProps {
@@ -69,8 +68,28 @@ export const workAreas: WorkArea[] = [
     title: 'Sales',
     subtitle: 'View, create, edit, and cancel sales',
     icon: PhilippinePeso,
-    load: placeholder,
-    count: { noun: 'sales', queryKey: saleKeys.list(), fetch: () => salesApi.list() },
+    load: () => import('../features/sales/SalesPage').then((m) => m.SalesPage),
+    children: [
+      {
+        path: 'new',
+        title: 'Create Sale',
+        subtitle: 'Create a new sale record',
+        load: () => import('../features/sales/NewSalePage').then((m) => m.NewSalePage),
+      },
+      {
+        path: ':id',
+        title: 'Sale Details',
+        subtitle: 'View a sale, collect payments and link a customer',
+        load: () => import('../features/sales/SaleDetailPage').then((m) => m.SaleDetailPage),
+      },
+      {
+        path: ':id/cancel',
+        title: 'Cancel Sale',
+        subtitle: 'Reverse a completed transaction through a controlled process.',
+        permission: 'sales.cancel_sale',
+        load: () => import('../features/sales/CancelSalePage').then((m) => m.CancelSalePage),
+      },
+    ],
   },
   {
     path: '/inventory',

@@ -1,10 +1,12 @@
-
 from django.urls import path
 
 from sales.views import (
     CancelSaleView,
+    CheckoutView,
+    DraftCartView,
     FinalizeSaleView,
     PaymentListCreateView,
+    SaleCustomerView,
     SaleDetailView,
     SaleItemAddView,
     SaleItemDetailView,
@@ -13,6 +15,9 @@ from sales.views import (
 
 urlpatterns = [
     path("", SaleListCreateView.as_view(), name="sale-list-create"),
+    path("checkout/", CheckoutView.as_view(), name="sale-checkout"),
+    path("<int:pk>/draft/", DraftCartView.as_view(), name="sale-draft-cart"),
+    path("<int:pk>/customer/", SaleCustomerView.as_view(), name="sale-customer"),
     path("<int:pk>/", SaleDetailView.as_view(), name="sale-detail"),
     path(
         "<int:pk>/items/",

@@ -33,6 +33,12 @@ export function formatDate(iso: string | null | undefined): string {
   return dateFormatter.format(new Date(iso))
 }
 
+/** A business date "YYYY-MM-DD" (no time zone involved) as MM/DD/YYYY. */
+export function formatDateOnly(value: string | null | undefined): string {
+  const match = value ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null
+  return match ? `${match[2]}/${match[3]}/${match[1]}` : '—'
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const date = new Date(iso)

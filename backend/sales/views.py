@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db import IntegrityError
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -9,9 +10,12 @@ from rest_framework.views import APIView
 
 from sales.models import Payment, Sale, SaleItem
 from sales.serializers import (
+    CheckoutSerializer,
+    DraftCartSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
     SaleCreateSerializer,
+    SaleCustomerChangeSerializer,
     SaleDetailSerializer,
     SaleItemAddSerializer,
     SaleItemSerializer,
@@ -19,7 +23,14 @@ from sales.serializers import (
     SaleListSerializer,
     SaleUpdateSerializer,
 )
-from sales.services import cancel_sale, finalize_sale, remove_sale_item
+from sales.services import (
+    cancel_sale,
+    change_sale_customer,
+    checkout_sale,
+    finalize_sale,
+    remove_sale_item,
+    replace_draft_cart,
+)
 
 CANCEL_PERMISSION = "sales.cancel_sale"
 REFUND_PERMISSION = "sales.process_refund"
@@ -27,7 +38,9 @@ RECORD_PAYMENT_PERMISSION = "sales.record_payment"
 
 
 def handle_service_validation_error(exc):
-    raise ValidationError(exc.messages)
+    # Keep field-keyed errors ({"items": [...]}) so the UI can place them.
+    detail = exc.message_dict if hasattr(exc, "error_dict") else exc.messages
+    raise ValidationError(detail)
 
 
 def run_service(func, *args, **kwargs):
@@ -44,21 +57,28 @@ def sale_detail_queryset():
     ).prefetch_related(
         "items__product",
         "payments__received_by",
+        "events__performed_by",
     )
 
 
-def sale_detail_response(sale_id, status_code=status.HTTP_200_OK):
+def sale_detail_response(request, sale_id, status_code=status.HTTP_200_OK):
     sale = sale_detail_queryset().get(pk=sale_id)
-    return Response(SaleDetailSerializer(sale).data, status=status_code)
+    data = SaleDetailSerializer(sale, context={"request": request}).data
+    return Response(data, status=status_code)
 
 
 class SaleListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Sale.objects.select_related(
-            "customer", "created_by"
-        ).prefetch_related("payments")
+        queryset = (
+            Sale.objects.select_related("customer", "created_by")
+            .prefetch_related(
+                "payments",
+                Prefetch("items", queryset=SaleItem.objects.select_related("product")),
+            )
+            .order_by("-sale_date", "-created_at", "-id")
+        )
 
         status_filter = self.request.query_params.get("status")
         if status_filter:
@@ -86,7 +106,7 @@ class SaleListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         sale = run_service(serializer.save)
-        return sale_detail_response(sale.pk, status.HTTP_201_CREATED)
+        return sale_detail_response(request, sale.pk, status.HTTP_201_CREATED)
 
 
 class SaleDetailView(generics.RetrieveUpdateAPIView):
@@ -108,7 +128,7 @@ class SaleDetailView(generics.RetrieveUpdateAPIView):
         serializer = SaleUpdateSerializer(sale, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         run_service(serializer.save)
-        return sale_detail_response(sale.pk)
+        return sale_detail_response(request, sale.pk)
 
 
 class SaleItemAddView(APIView):
@@ -124,7 +144,7 @@ class SaleItemAddView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         run_service(serializer.save)
-        return sale_detail_response(sale.pk, status.HTTP_201_CREATED)
+        return sale_detail_response(request, sale.pk, status.HTTP_201_CREATED)
 
 
 class SaleItemDetailView(APIView):
@@ -140,19 +160,20 @@ class SaleItemDetailView(APIView):
         )
 
     def get(self, request, pk, item_pk):
-        return Response(SaleItemSerializer(self.get_item(pk, item_pk)).data)
+        item = self.get_item(pk, item_pk)
+        return Response(SaleItemSerializer(item, context={"request": request}).data)
 
     def patch(self, request, pk, item_pk):
         item = self.get_item(pk, item_pk)
         serializer = SaleItemUpdateSerializer(item, data=request.data)
         serializer.is_valid(raise_exception=True)
         run_service(serializer.save)
-        return sale_detail_response(pk)
+        return sale_detail_response(request, pk)
 
     def delete(self, request, pk, item_pk):
         item = self.get_item(pk, item_pk)
         run_service(remove_sale_item, sale_id=pk, item_id=item.pk)
-        return sale_detail_response(pk)
+        return sale_detail_response(request, pk)
 
 
 class FinalizeSaleView(APIView):
@@ -161,7 +182,7 @@ class FinalizeSaleView(APIView):
     def post(self, request, pk):
         get_object_or_404(Sale, pk=pk)
         run_service(finalize_sale, sale_id=pk, user=request.user)
-        return sale_detail_response(pk)
+        return sale_detail_response(request, pk)
 
 
 class CancelSaleView(APIView):
@@ -178,7 +199,7 @@ class CancelSaleView(APIView):
             user=request.user,
             reason=request.data.get("reason", ""),
         )
-        return sale_detail_response(pk)
+        return sale_detail_response(request, pk)
 
 
 class PaymentListCreateView(generics.ListCreateAPIView):
@@ -233,3 +254,64 @@ class PaymentListCreateView(generics.ListCreateAPIView):
             PaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class CheckoutView(APIView):
+    """Creates, finalizes and optionally pays a sale in one step (specs/006 R1)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CheckoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        payment = data.pop("payment", None)
+        try:
+            sale, created = run_service(
+                checkout_sale,
+                user=request.user,
+                payment=dict(payment) if payment else None,
+                **data,
+            )
+        except IntegrityError:
+            # A concurrent retry with the same client_transaction_id won the race.
+            existing = Sale.objects.filter(
+                client_transaction_id=data.get("client_transaction_id")
+            ).first()
+            if not existing:
+                raise
+            sale, created = existing, False
+        code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return sale_detail_response(request, sale.pk, code)
+
+
+class DraftCartView(APIView):
+    """PUT replaces a draft's whole cart (specs/006 R2)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        get_object_or_404(Sale, pk=pk)
+        serializer = DraftCartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        run_service(replace_draft_cart, sale_id=pk, **serializer.validated_data)
+        return sale_detail_response(request, pk)
+
+
+class SaleCustomerView(APIView):
+    """POST links or changes the customer of a finalized sale, with a reason."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        get_object_or_404(Sale, pk=pk)
+        serializer = SaleCustomerChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        run_service(
+            change_sale_customer,
+            sale_id=pk,
+            user=request.user,
+            customer=serializer.validated_data["customer"],
+            reason=serializer.validated_data["reason"],
+        )
+        return sale_detail_response(request, pk)
