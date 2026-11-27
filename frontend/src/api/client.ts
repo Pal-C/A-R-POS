@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { config } from '../config'
+import { setConnectionStatus } from '../lib/connection'
 import { toApiError } from './errors'
 
 /** Decimal values (money, decimal quantities) arrive from DRF as strings; never use floats. */
@@ -46,11 +47,14 @@ export const http = axios.create({
 
 http.interceptors.response.use(
   (response) => {
+    setConnectionStatus('online')
     if (response.config.url?.endsWith('/auth/login/')) unauthenticatedNotified = false
     return response
   },
   (error: unknown) => {
     const apiError = toApiError(error)
+    // Any HTTP response means the server was reached; only network failures mean offline.
+    setConnectionStatus(apiError.kind === 'network' ? 'offline' : 'online')
     const url = axios.isAxiosError(error) ? (error.config?.url ?? '') : ''
     const isAuthFlow = AUTH_FLOW_PATHS.some((path) => url.endsWith(path))
     if (apiError.kind === 'unauthenticated' && !isAuthFlow && !unauthenticatedNotified) {

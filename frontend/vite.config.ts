@@ -7,6 +7,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   return {
     plugins: [react()],
+    css: {
+      preprocessorOptions: {
+        scss: {
+          // Bootstrap 5.3 still uses @import and legacy color functions.
+          silenceDeprecations: ['import', 'global-builtin', 'color-functions', 'mixed-decls', 'if-function'],
+          quietDeps: true,
+        },
+      },
+    },
     server: {
       // Same-origin API in development: cookies, CSRF and SameSite work without CORS
       // (research R4). Production serves /api from the same origin via a reverse proxy.

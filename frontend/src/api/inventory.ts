@@ -1,6 +1,6 @@
 import type { Product } from './catalog'
 import { apiGet, apiGetPage, apiPost } from './client'
-import type { DateOnly, DateTime, ListParams, Paginated } from './common'
+import type { DateOnly, DateTime, ListParams, Money, Paginated } from './common'
 
 export type MovementType =
   | 'SALE'
@@ -62,6 +62,8 @@ export interface InventorySummary {
   total_units_in_stock: number
   low_stock_count: number
   out_of_stock_count: number
+  /** Σ cost × stock over active products; only for staff with `catalog.view_product_cost`. */
+  inventory_value?: Money
 }
 
 export const inventoryKeys = {

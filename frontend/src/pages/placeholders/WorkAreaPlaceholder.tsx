@@ -18,12 +18,11 @@ function RecordCount({ count }: { count: WorkAreaCount }) {
   )
 }
 
-/** Stand-in for a work area until its feature delivers the real screen (FR-012). */
+/** Stand-in for a work area until its feature delivers the real screen (FR-008). */
 export function WorkAreaPlaceholder({ area }: WorkAreaPageProps) {
   return (
-    <section>
-      <h1 className="h3">{area.label}</h1>
-      <p className="text-body-secondary">Coming soon.</p>
+    <section className="ar-card ar-page" aria-label={area.title}>
+      <p className="text-body-secondary">This screen is coming soon.</p>
       {area.count && <RecordCount count={area.count} />}
     </section>
   )

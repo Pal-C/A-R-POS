@@ -1,0 +1,42 @@
+// Status pills; one tone per status (src/lib/statusBadges.ts).
+.ar-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border: 2px solid transparent;
+  border-radius: 50rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ar-badge--outline {
+  border-color: $ar-grey-300;
+  background: $ar-white;
+  color: $ar-ink-900;
+}
+
+.ar-badge--navy {
+  background: $ar-navy-900;
+  color: $ar-white;
+}
+
+.ar-badge--sky {
+  background: $ar-sky-300;
+  color: $ar-navy-900;
+}
+
+.ar-badge--yellow {
+  background: $ar-yellow-400;
+  color: $ar-ink-900;
+}
+
+.ar-badge--black {
+  background: $ar-ink-900;
+  color: $ar-white;
+}
+
+.ar-badge--muted {
+  background: $ar-grey-200;
+  color: $ar-grey-600;
+}

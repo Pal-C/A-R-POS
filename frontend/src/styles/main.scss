@@ -1,0 +1,80 @@
+// Application stylesheet: tokens -> themed Bootstrap (partial imports) -> our components.
+@import "tokens";
+
+// Bootstrap configuration
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+
+// Bootstrap layout and components actually used (research R1)
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/type";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+@import "bootstrap/scss/tables";
+@import "bootstrap/scss/forms";
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/transitions";
+@import "bootstrap/scss/dropdown";
+@import "bootstrap/scss/nav";
+@import "bootstrap/scss/badge";
+@import "bootstrap/scss/alert";
+@import "bootstrap/scss/pagination";
+@import "bootstrap/scss/toasts";
+@import "bootstrap/scss/spinners";
+@import "bootstrap/scss/close";
+@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/utilities/api";
+
+// Design tokens as runtime custom properties for our components
+:root {
+  --ar-navy-900: #{$ar-navy-900};
+  --ar-navy-700: #{$ar-navy-700};
+  --ar-sky-300: #{$ar-sky-300};
+  --ar-sky-100: #{$ar-sky-100};
+  --ar-yellow-400: #{$ar-yellow-400};
+  --ar-ink-900: #{$ar-ink-900};
+  --ar-grey-100: #{$ar-grey-100};
+  --ar-grey-200: #{$ar-grey-200};
+  --ar-grey-300: #{$ar-grey-300};
+  --ar-grey-600: #{$ar-grey-600};
+  --ar-white: #{$ar-white};
+  --ar-danger: #{$ar-danger};
+  --ar-radius-control: #{$ar-radius-control};
+  --ar-radius-card: #{$ar-radius-card};
+  --ar-shadow-card: #{$ar-shadow-card};
+  --ar-shadow-dialog: #{$ar-shadow-dialog};
+  --ar-font-heading: #{$ar-font-heading};
+}
+
+// Base
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+h1,
+.h1 {
+  font-size: 2.75rem;
+  line-height: 1.1;
+  color: $ar-ink-900;
+}
+
+.visually-hidden-focusable:focus {
+  z-index: 1100;
+}
+
+// Our components
+@import "components/buttons";
+@import "components/forms";
+@import "components/filters";
+@import "components/table";
+@import "components/cards";
+@import "components/badges";
+@import "components/overlays";
+@import "components/shell";

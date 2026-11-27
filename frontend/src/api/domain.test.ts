@@ -40,8 +40,11 @@ const cases: Case[] = [
   // catalog
   ['products.list', () => productsApi.list({ category: 'RACKET', is_active: true, page: 2 }), 'GET', '/api/products/', { category: 'RACKET', is_active: 'true', page: '2' }],
   ['products.get', () => productsApi.get(5), 'GET', '/api/products/5/'],
-  ['products.update', () => productsApi.update(5, { name: 'X' }), 'PATCH', '/api/products/5/', {}, { name: 'X' }],
-  ['products.remove', () => productsApi.remove(5), 'DELETE', '/api/products/5/'],
+  ['products.create', () => productsApi.create({ sku: 'A', name: 'X', category: 'RACKET', selling_price: '1.00', initial_stock: 3 }), 'POST', '/api/products/', {}, { sku: 'A', name: 'X', category: 'RACKET', selling_price: '1.00', initial_stock: 3 }],
+  ['products.update', () => productsApi.update(5, { changes: { name: 'X' }, expected: { name: 'W' }, reason: 'Typo' }), 'PATCH', '/api/products/5/', {}, { changes: { name: 'X' }, expected: { name: 'W' }, reason: 'Typo' }],
+  ['products.deactivate', () => productsApi.deactivate(5, 'Discontinued'), 'POST', '/api/products/5/deactivate/', {}, { reason: 'Discontinued' }],
+  ['products.reactivate', () => productsApi.reactivate(5, 'Back in range'), 'POST', '/api/products/5/reactivate/', {}, { reason: 'Back in range' }],
+  ['products.history', () => productsApi.history(5, { page: 2 }), 'GET', '/api/products/5/history/', { page: '2' }],
   // inventory
   ['inventory.movements', () => inventoryApi.movements({ product_id: 3, movement_type: 'RESTOCK' }), 'GET', '/api/inventory/movements/', { product_id: '3', movement_type: 'RESTOCK' }],
   ['inventory.restock', () => inventoryApi.restock({ product_id: 3, quantity_received: 4 }), 'POST', '/api/inventory/restocks/', {}, { product_id: 3, quantity_received: 4 }],

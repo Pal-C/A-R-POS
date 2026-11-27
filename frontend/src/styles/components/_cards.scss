@@ -1,0 +1,105 @@
+// White bordered cards, KPI cards and information banners.
+.ar-card {
+  padding: 1.75rem 2rem 2rem;
+  border: 3px solid $ar-grey-300;
+  border-radius: $ar-radius-card;
+  background: $ar-white;
+}
+
+.ar-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ar-card__title {
+  margin: 0;
+  font-size: 1.6rem;
+  color: $ar-navy-900;
+}
+
+.ar-card__aside {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: $ar-grey-600;
+  font-size: 0.95rem;
+}
+
+.ar-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1.1rem;
+  margin-bottom: 2.75rem;
+}
+
+.ar-kpi {
+  padding: 1.25rem 1.5rem;
+  border: 3px solid $ar-grey-300;
+  border-radius: $ar-radius-card;
+  background: $ar-white;
+}
+
+.ar-kpi__label {
+  margin: 0;
+  font-family: $ar-font-body;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: $ar-ink-900;
+}
+
+.ar-kpi__value {
+  margin: 0.15rem 0;
+  font-family: $ar-font-heading;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: $ar-navy-900;
+  overflow-wrap: anywhere;
+}
+
+.ar-kpi__caption {
+  margin: 0;
+  font-size: 0.9rem;
+  color: $ar-grey-600;
+}
+
+.ar-kpi--highlight {
+  border-color: $ar-navy-900;
+  background: $ar-navy-900;
+
+  .ar-kpi__label,
+  .ar-kpi__caption {
+    color: $ar-white;
+  }
+
+  .ar-kpi__value {
+    color: $ar-yellow-400;
+  }
+}
+
+.ar-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: $ar-radius-control;
+  background: $ar-grey-100;
+  font-size: 0.9rem;
+}
+
+.ar-banner__icon {
+  flex-shrink: 0;
+  color: $ar-ink-900;
+}
+
+.ar-alert {
+  margin-bottom: 0;
+}
+
+.ar-loading {
+  color: $ar-grey-600;
+}

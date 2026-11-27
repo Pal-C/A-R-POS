@@ -1,0 +1,260 @@
+// App shell: white brand + header row, navy sidebar, grey content area.
+.ar-shell {
+  display: grid;
+  grid-template-columns: $ar-sidebar-width minmax(0, 1fr);
+  grid-template-rows: $ar-header-height 1fr;
+  min-height: 100vh;
+
+  @media (max-width: 991.98px) {
+    grid-template-columns: $ar-sidebar-collapsed minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+}
+
+.ar-skip {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: $ar-yellow-400;
+  color: $ar-ink-900;
+  font-weight: 600;
+}
+
+.ar-shell__brand {
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+
+  @media (max-width: 991.98px) {
+    justify-content: center;
+    padding: 0;
+  }
+  border-right: 3px solid $ar-grey-300;
+  border-bottom: 3px solid $ar-grey-300;
+  background: $ar-white;
+}
+
+.ar-brand {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  color: $ar-ink-900;
+  text-decoration: none;
+}
+
+.ar-brand__logo {
+  width: 54px;
+  height: 54px;
+
+  @media (max-width: 991.98px) {
+    width: 44px;
+    height: 44px;
+  }
+
+  border-radius: 50%;
+  background: $ar-ink-900;
+  flex-shrink: 0;
+}
+
+.ar-brand__name {
+  font-family: $ar-font-heading;
+  font-size: 1.75rem;
+  font-weight: 600;
+
+  @media (max-width: 991.98px) {
+    @include visually-hidden;
+  }
+}
+
+.ar-shell__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 2.5rem 0.75rem 4rem;
+  border-bottom: 3px solid $ar-grey-300;
+  background: $ar-white;
+
+  @media (max-width: 991.98px) {
+    padding: 0.75rem 1.25rem;
+  }
+}
+
+.ar-page-title__heading {
+  margin: 0;
+  font-family: $ar-font-heading;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: $ar-ink-900;
+
+  @media (max-width: 991.98px) {
+    font-size: 2rem;
+  }
+}
+
+.ar-page-title__subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 1.2rem;
+  color: $ar-ink-900;
+}
+
+.ar-shell__header-aside {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ar-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border: 2px solid $ar-grey-300;
+  border-radius: 50rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.ar-sync__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: $ar-navy-900;
+}
+
+.ar-sync--offline .ar-sync__dot {
+  background: $ar-yellow-400;
+}
+
+.ar-user {
+  position: relative;
+}
+
+.ar-user__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem;
+  text-align: left;
+
+  &:focus-visible {
+    outline: 3px solid $ar-yellow-400;
+    border-radius: $ar-radius-control;
+  }
+}
+
+.ar-user__avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: $ar-navy-900;
+  color: $ar-white;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.ar-user__text {
+  display: grid;
+  line-height: 1.2;
+
+  @media (max-width: 767.98px) {
+    @include visually-hidden;
+  }
+}
+
+.ar-user__name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ar-user__role {
+  font-size: 0.85rem;
+  color: $ar-grey-600;
+}
+
+.ar-user__menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 180px;
+  padding: 0.75rem;
+  border: 1px solid $ar-grey-300;
+  border-radius: $ar-radius-card;
+  background: $ar-white;
+  box-shadow: $ar-shadow-dialog;
+}
+
+.ar-shell__nav {
+  background: $ar-navy-900;
+  padding-top: 1.75rem;
+}
+
+.ar-nav {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ar-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 59px;
+  padding: 0 2.1rem;
+  border-left: 6px solid transparent;
+  color: $ar-white;
+  font-size: 1.35rem;
+  text-decoration: none;
+
+  &:hover {
+    background: rgba($ar-white, 0.08);
+    color: $ar-white;
+  }
+
+  &:focus-visible {
+    outline: 3px solid $ar-yellow-400;
+    outline-offset: -3px;
+  }
+
+  &.active {
+    border-left-color: $ar-yellow-400;
+    background: $ar-sky-300;
+    color: $ar-navy-900;
+  }
+
+  @media (max-width: 991.98px) {
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+.ar-nav__icon {
+  flex-shrink: 0;
+}
+
+.ar-nav__label {
+  @media (max-width: 991.98px) {
+    @include visually-hidden;
+  }
+}
+
+.ar-shell__main {
+  padding: 2.1rem 3rem 3rem;
+  outline: none;
+
+  @media (max-width: 991.98px) {
+    padding: 1.5rem 1rem 2rem;
+  }
+}
+
+.ar-page {
+  max-width: 1085px;
+}

@@ -1,0 +1,102 @@
+// Data table: rounded light-blue header, white rows separated by grey dividers.
+.ar-table {
+  border: 2px solid $ar-grey-300;
+  border-radius: $ar-radius-card;
+  background: $ar-white;
+  overflow-x: auto;
+
+  .table {
+    --bs-table-bg: #{$ar-white};
+    margin: 0;
+  }
+
+  thead th {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 0;
+    background: $ar-sky-300;
+    color: $ar-navy-900;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  tbody td {
+    vertical-align: middle;
+    border-bottom: 4px solid $ar-grey-200;
+    font-size: 1.05rem;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .ar-truncate {
+    display: block;
+    max-width: 28ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ar-table__actions,
+.ar-table__actions-head {
+  width: 1%;
+  white-space: nowrap;
+  text-align: end;
+}
+
+.ar-table__state {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.ar-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 2.25rem;
+  color: $ar-grey-600;
+}
+
+.ar-pagination__pages {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ar-pagination__page {
+  width: 32px;
+  height: 32px;
+  border: 2px solid $ar-grey-300;
+  border-radius: 50%;
+  background: $ar-white;
+  color: $ar-ink-900;
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  &.is-current {
+    border-color: $ar-navy-900;
+    background: $ar-navy-900;
+    color: $ar-white;
+  }
+
+  &:focus-visible {
+    outline: 3px solid $ar-yellow-400;
+    outline-offset: 2px;
+  }
+}
+
+.ar-pagination__gap {
+  align-self: center;
+}
