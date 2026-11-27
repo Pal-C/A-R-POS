@@ -4,6 +4,7 @@
   border-radius: $ar-radius-card;
   background: $ar-white;
   overflow-x: auto;
+  overflow-y: hidden;
 
   .table {
     --bs-table-bg: #{$ar-white};

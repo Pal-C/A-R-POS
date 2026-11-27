@@ -1,5 +1,5 @@
-import { apiDelete, apiGet, apiGetPage, apiPatch, apiPost } from './client'
-import type { DateTime, ListParams, Money, Paginated, PaymentMethod, PaymentStatus, PaymentType } from './common'
+import { apiDelete, apiGet, apiGetPage, apiPatch, apiPost, apiPut } from './client'
+import type { DateOnly, DateTime, ListParams, Money, Paginated, PaymentMethod, PaymentStatus, PaymentType } from './common'
 
 export type SaleStatus = 'DRAFT' | 'PENDING_PAYMENT' | 'COMPLETED' | 'CANCELLED'
 
@@ -11,11 +11,13 @@ export interface SaleItem {
   product_sku: string
   quantity: number
   unit_selling_price: Money
-  unit_cost_price: Money
+  /** Present only for staff with `catalog.view_product_cost`. */
+  unit_cost_price?: Money
   discount_amount: Money
   line_subtotal: Money
   line_total: Money
-  gross_profit: Money
+  /** Present only for staff with `catalog.view_product_cost`. */
+  gross_profit?: Money
   created_at: DateTime
 }
 
@@ -40,7 +42,8 @@ export interface Payment {
 /** backend/sales/serializers.py SaleListSerializer */
 export interface SaleListItem {
   id: number
-  sale_number: string
+  /** Assigned at finalization; null for drafts. */
+  sale_number: string | null
   customer: number | null
   customer_name: string | null
   created_by: number
@@ -56,6 +59,23 @@ export interface SaleListItem {
   created_at: DateTime
   finalized_at: DateTime | null
   cancelled_at: DateTime | null
+  /** Store-local business date; null for drafts. */
+  sale_date: DateOnly | null
+  /** e.g. "BG66 Ultimax ×1, Super Grap ×2" */
+  items_summary: string
+  /** Distinct methods of posted receipts, in order received. */
+  payment_methods: PaymentMethod[]
+}
+
+export type SaleEventAction = 'CUSTOMER_CHANGED' | 'BACKDATED'
+
+export interface SaleEvent {
+  id: number
+  action: SaleEventAction
+  changes: Record<string, unknown>
+  reason: string
+  performed_by: { id: number; username: string; display_name: string }
+  created_at: DateTime
 }
 
 /** backend/sales/serializers.py SaleDetailSerializer */
@@ -65,6 +85,26 @@ export interface Sale extends SaleListItem {
   cancellation_reason: string
   cancelled_by: number | null
   updated_at: DateTime
+  events: SaleEvent[]
+}
+
+export interface CartLineInput {
+  product_id: number
+  quantity: number
+}
+
+export interface DraftCart {
+  customer_id?: number | null
+  items: CartLineInput[]
+  discount_amount?: Money
+}
+
+export interface CheckoutRequest extends DraftCart {
+  client_transaction_id: string
+  draft_id?: number | null
+  sale_date?: DateOnly
+  backdate_reason?: string
+  payment?: { payment_method: PaymentMethod; amount: Money; reference_number?: string } | null
 }
 
 export interface SaleItemCreate {
@@ -137,4 +177,10 @@ export const salesApi = {
   payments: (params?: PaymentListParams): Promise<Paginated<Payment>> =>
     apiGetPage<Payment>('/sales/payments/', params),
   recordPayment: (body: PaymentCreate): Promise<Payment> => apiPost<Payment>('/sales/payments/', body),
+  /** Create + finalize + pay in one idempotent step (specs/006 R1). */
+  checkout: (body: CheckoutRequest): Promise<Sale> => apiPost<Sale>('/sales/checkout/', body),
+  saveDraft: (body: DraftCart): Promise<Sale> => apiPost<Sale>('/sales/', body),
+  replaceDraft: (id: number, body: DraftCart): Promise<Sale> => apiPut<Sale>(`/sales/${id}/draft/`, body),
+  changeCustomer: (id: number, body: { customer_id: number; reason: string }): Promise<Sale> =>
+    apiPost<Sale>(`/sales/${id}/customer/`, body),
 }

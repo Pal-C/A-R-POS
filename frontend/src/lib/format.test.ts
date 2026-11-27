@@ -1,4 +1,4 @@
-import { formatCount, formatDate, formatDateTime, formatMoney, initials, parseMoneyInput } from './format'
+import { formatCount, formatDate, formatDateOnly, formatDateTime, formatMoney, initials, parseMoneyInput } from './format'
 
 describe('formatMoney', () => {
   it('formats pesos with two decimals by default', () => {
@@ -39,6 +39,14 @@ describe('dates in the store time zone (Asia/Manila)', () => {
 
   it('shows a dash for missing values', () => {
     expect(formatDate(null)).toBe('—')
+  })
+})
+
+describe('formatDateOnly', () => {
+  it('reformats business dates without time zone shifts', () => {
+    expect(formatDateOnly('2026-11-08')).toBe('11/08/2026')
+    expect(formatDateOnly(null)).toBe('—')
+    expect(formatDateOnly('nope')).toBe('—')
   })
 })
 

@@ -48,7 +48,7 @@ src/
 │   └── ui/         # Shared components: Button, fields, SearchBox, FilterMenu, StatusChips, DataTable,
 │                   # Pagination, KpiCard, StatusBadge, Card, Banner, Modal, ConfirmCheck, Toast
 ├── layouts/        # AppLayout (skip link, sidebar, page header), Sidebar, PageHeader, SyncPill, UserBadge
-├── lib/            # format.ts (money/dates), statusBadges.ts, connection.ts, cx.ts, pageWindow.ts
+├── lib/            # format.ts (money/dates), money.ts (exact peso math), statusBadges.ts, connection.ts, cx.ts, pageWindow.ts
 ├── routes/         # workAreas.ts (sidebar + routes + page titles), router.tsx
 ├── features/       # One folder per area, e.g. features/products (screens, dialogs, hooks, tests)
 ├── pages/          # Sign-in, Home, Not found, Access denied, placeholders
@@ -62,7 +62,15 @@ src/
   is cleared on sign-out and when a session expires.
 - **Errors**: API calls only ever reject with `ApiError`. Show `error.message`, or
   `error.fieldErrors[field]` next to a form field. Never render a raw response.
-- **Money** is a `string` (DRF decimal). Never convert it to a float for arithmetic.
+- **Money** is a `string` (DRF decimal). Never convert it to a float for arithmetic. Use
+  `lib/money.ts` (`addMoney`, `multiplyMoney`, `sumMoney`, `compareMoney`) for client-side
+  totals. They use integer cents, so ₱0.10 + ₱0.20 is exactly ₱0.30. The server's totals are
+  always authoritative.
+- **Business dates** (`sale_date`, `YYYY-MM-DD`) are shown with `formatDateOnly`. Never parse
+  them as a `Date`, which can shift the day.
+- **Sales** (`features/sales`): the cart is a pure reducer (`cartReducer.ts`). Completing a
+  sale calls the single, idempotent `POST /api/sales/checkout/` with the cart's
+  `client_transaction_id`, so a retry after a network error never creates a second sale.
 - **Design tokens**: colors, fonts, radii and shadows live only in `src/styles/_tokens.scss`.
   Components use the Sass variables or the `--ar-*` custom properties. Never hardcode a color.
 - **Shared components first**: build screens from `components/ui` (constitution Principle III).
