@@ -1,0 +1,82 @@
+// Labelled fields as in the references: medium labels, white inputs, grey borders.
+.ar-field {
+  margin-bottom: 0;
+
+  .form-label {
+    margin-bottom: 0.35rem;
+    font-size: 1.05rem;
+    color: $ar-ink-900;
+  }
+
+  .form-control,
+  .form-select {
+    min-height: 46px;
+    background-color: $ar-white;
+  }
+
+  .form-control[readonly] {
+    background-color: $ar-grey-100;
+  }
+}
+
+.ar-field__required {
+  color: $ar-danger;
+}
+
+.ar-money .input-group-text {
+  background: $ar-white;
+  border-right: 0;
+  color: $ar-grey-600;
+}
+
+.ar-money .form-control {
+  border-left: 0;
+  padding-left: 0.25rem;
+}
+
+.ar-check {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 0;
+  min-height: 46px;
+
+  .form-check-input {
+    float: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: 0;
+    border: 2px solid $ar-navy-900;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+
+  .form-check-label {
+    font-size: 1.05rem;
+  }
+}
+
+.ar-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.1rem 1rem;
+
+  @media (max-width: 767.98px) {
+    grid-template-columns: 1fr;
+  }
+
+  .ar-form-grid__wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.ar-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.ar-page.ar-form-card {
+  max-width: 958px;
+}

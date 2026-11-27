@@ -76,7 +76,7 @@ describe('LoginPage', () => {
     expect(await screen.findByRole('button', { name: /signing in/i })).toBeDisabled()
     await waitFor(() => expect(loginCalls).toHaveBeenCalledTimes(1))
     release()
-    expect(await screen.findByRole('heading', { name: /welcome/i })).toBeInTheDocument()
+    expect(await screen.findByText(/^Welcome,/)).toBeInTheDocument()
     expect(loginCalls).toHaveBeenCalledTimes(1)
   })
 
@@ -100,7 +100,7 @@ describe('LoginPage', () => {
     asUser()
     const { currentPath } = renderApp('/login')
 
-    expect(await screen.findByRole('heading', { name: `Welcome, ${staffUser.display_name}` })).toBeInTheDocument()
+    expect(await screen.findByText(`Welcome, ${staffUser.display_name}`)).toBeInTheDocument()
     expect(currentPath()).toBe('/')
   })
 
@@ -112,7 +112,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Password'), 'secret')
     await user.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('heading', { name: /welcome/i })).toBeInTheDocument()
+    expect(await screen.findByText(/^Welcome,/)).toBeInTheDocument()
     expect(currentPath()).toBe('/')
   })
 })

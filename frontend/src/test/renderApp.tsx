@@ -6,6 +6,7 @@ import { createQueryClient } from '../api/queryClient'
 import { AuthProvider } from '../auth/AuthProvider'
 import { appRoutes } from '../routes/router'
 import { workAreas, type WorkArea } from '../routes/workAreas'
+import { ToastProvider } from '../components/ui/Toast'
 
 /** Renders the full app (providers + routes) at `url` with a fresh cache. */
 export function renderApp(url = '/', { areas = workAreas }: { areas?: WorkArea[] } = {}) {
@@ -15,9 +16,11 @@ export function renderApp(url = '/', { areas = workAreas }: { areas?: WorkArea[]
   const user = userEvent.setup()
   const utils = render(
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>,
   )
   const currentPath = () => `${router.state.location.pathname}${router.state.location.search}`

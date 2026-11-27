@@ -29,6 +29,7 @@ interface ApiErrorInit {
   message: string
   fieldErrors?: FieldErrors
   nonFieldErrors?: string[]
+  current?: Record<string, unknown>
 }
 
 /** A normalized, display-safe API failure. `message` never contains server internals. */
@@ -37,6 +38,8 @@ export class ApiError extends Error {
   readonly status: number | null
   readonly fieldErrors: FieldErrors
   readonly nonFieldErrors: string[]
+  /** 409 only: the server's current values for the fields that conflicted. */
+  readonly current?: Record<string, unknown>
 
   constructor(init: ApiErrorInit) {
     super(init.message)
@@ -45,6 +48,7 @@ export class ApiError extends Error {
     this.status = init.status
     this.fieldErrors = init.fieldErrors ?? {}
     this.nonFieldErrors = init.nonFieldErrors ?? []
+    this.current = init.current
   }
 }
 
@@ -148,6 +152,7 @@ export function toApiError(err: unknown): ApiError {
         status,
         message: detail ?? MESSAGES.conflict,
         nonFieldErrors: detail ? [detail] : [],
+        current: isRecord(data) && isRecord(data.current) ? data.current : undefined,
       })
     }
     case 429:

@@ -1,0 +1,89 @@
+// Design tokens for Ace&Rally POS, sampled from the Figma references
+// (specs/005-ui-design/research.md R1). This is the ONLY file that may contain
+// raw color values; everything else uses these variables or the --ar-* properties.
+
+// Palette
+$ar-navy-900: #032d42;
+$ar-navy-700: #0b4461;
+$ar-sky-300: #8ec8e4;
+$ar-sky-100: #dceff8;
+$ar-yellow-400: #f5b800;
+$ar-ink-900: #111111;
+$ar-grey-100: #f3f2f5;
+$ar-grey-200: #ebeaee;
+$ar-grey-300: #d9d9d9;
+$ar-grey-600: #6b6b6b;
+$ar-white: #ffffff;
+$ar-danger: #b42318;
+$ar-success: #1e7a46;
+
+// Typography
+$ar-font-heading: "Signika", "Noto Sans", system-ui, sans-serif;
+$ar-font-body: "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+// Shape
+$ar-radius-control: 6px;
+$ar-radius-card: 8px;
+$ar-shadow-card: 0 1px 2px rgba(3, 45, 66, 0.06);
+$ar-shadow-dialog: 0 12px 32px rgba(3, 45, 66, 0.25);
+
+// Layout
+$ar-sidebar-width: 258px;
+$ar-sidebar-collapsed: 72px;
+$ar-header-height: 116px;
+
+// Bootstrap variable overrides (must be set before Bootstrap's variables load)
+$primary: $ar-navy-900;
+$secondary: $ar-grey-600;
+$info: $ar-sky-300;
+$warning: $ar-yellow-400;
+$danger: $ar-danger;
+$success: $ar-success;
+$dark: $ar-ink-900;
+$light: $ar-grey-100;
+
+$body-bg: $ar-grey-100;
+$body-color: $ar-ink-900;
+$body-secondary-color: $ar-grey-600;
+$link-color: $ar-navy-900;
+$border-color: $ar-grey-300;
+
+$font-family-sans-serif: $ar-font-body;
+$headings-font-family: $ar-font-heading;
+$headings-font-weight: 700;
+$headings-color: $ar-navy-900;
+$font-size-base: 1rem;
+
+$border-radius: $ar-radius-control;
+$border-radius-sm: 4px;
+$border-radius-lg: $ar-radius-card;
+$border-radius-pill: 50rem;
+
+$input-bg: $ar-white;
+$input-border-color: $ar-grey-300;
+$input-padding-y: 0.6rem;
+$input-padding-x: 0.9rem;
+$input-focus-border-color: $ar-navy-900;
+$input-placeholder-color: $ar-grey-600;
+$form-label-font-weight: 500;
+$form-check-input-checked-bg-color: $ar-navy-900;
+$form-check-input-checked-border-color: $ar-navy-900;
+
+$focus-ring-color: rgba($ar-navy-900, 0.35);
+$focus-ring-width: 3px;
+
+$btn-font-weight: 600;
+$btn-padding-y: 0.65rem;
+$btn-padding-x: 1.25rem;
+$btn-border-width: 2px;
+
+$table-cell-padding-y: 0.9rem;
+$table-cell-padding-x: 1rem;
+$table-border-color: $ar-grey-300;
+
+$modal-content-border-radius: $ar-radius-card;
+$modal-backdrop-bg: $ar-ink-900;
+$modal-backdrop-opacity: 0.5;
+
+$enable-shadows: false;
+$enable-negative-margins: true;

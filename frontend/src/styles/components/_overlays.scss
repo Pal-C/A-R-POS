@@ -1,0 +1,109 @@
+// Native <dialog> modal and toast notifications.
+.ar-modal {
+  width: min(620px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: $ar-radius-card;
+  box-shadow: $ar-shadow-dialog;
+  color: $ar-ink-900;
+
+  &::backdrop {
+    background: rgba($ar-ink-900, 0.5);
+  }
+}
+
+.ar-modal__content {
+  padding: 1.75rem 2.1rem 2rem;
+}
+
+.ar-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.ar-modal__title {
+  margin: 0;
+  font-size: 1.6rem;
+  color: $ar-navy-900;
+}
+
+.ar-modal__close {
+  border: 0;
+  background: transparent;
+  color: $ar-ink-900;
+  padding: 0.25rem;
+
+  &:focus-visible {
+    outline: 3px solid $ar-yellow-400;
+  }
+}
+
+.ar-modal__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.ar-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.ar-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: $ar-radius-control;
+  background: $ar-grey-100;
+}
+
+.ar-summary__title {
+  margin: 0;
+  font-size: 1.25rem;
+  color: $ar-navy-900;
+}
+
+.ar-summary__meta {
+  margin: 0;
+  color: $ar-grey-600;
+  font-size: 0.9rem;
+}
+
+.ar-toasts {
+  position: fixed;
+  z-index: 1090;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+  width: min(380px, calc(100vw - 3rem));
+}
+
+.ar-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-left: 6px solid $ar-success;
+  border-radius: $ar-radius-control;
+  background: $ar-white;
+  box-shadow: $ar-shadow-dialog;
+}
+
+.ar-toast--error {
+  border-left-color: $ar-danger;
+}
+
+.ar-toast__close {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: $ar-grey-600;
+}

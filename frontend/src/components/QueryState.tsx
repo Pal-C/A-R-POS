@@ -25,19 +25,19 @@ export function QueryState({
 }: QueryStateProps) {
   if (error) {
     return (
-      <div className="alert alert-danger" role="alert">
+      <div className="alert alert-danger ar-alert" role="alert">
         {isApiError(error) ? error.message : MESSAGES.unexpected}
       </div>
     )
   }
   if (isPending) {
     return (
-      <div role="status" aria-live="polite">
+      <div role="status" aria-live="polite" className="ar-loading">
         <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
         {loadingText}
       </div>
     )
   }
-  if (isEmpty) return <p className="text-body-secondary">{emptyText}</p>
+  if (isEmpty) return emptyText ? <p className="text-body-secondary mb-0">{emptyText}</p> : null
   return <>{children}</>
 }

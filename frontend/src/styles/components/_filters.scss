@@ -1,0 +1,106 @@
+// Search box, filter menu and status chips.
+.ar-search {
+  position: relative;
+  flex: 1 1 320px;
+  max-width: 410px;
+
+  .form-control {
+    min-height: 50px;
+    padding-left: 3rem;
+    padding-right: 2.5rem;
+    border: 2px solid $ar-grey-300;
+  }
+}
+
+.ar-search__icon {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: $ar-grey-600;
+  pointer-events: none;
+}
+
+.ar-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: $ar-grey-600;
+  padding: 0.25rem;
+}
+
+.ar-filter {
+  position: relative;
+}
+
+.ar-filter__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50rem;
+  background: $ar-navy-900;
+  color: $ar-white;
+  font-size: 0.75rem;
+}
+
+.ar-filter__panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  display: grid;
+  gap: 0.75rem;
+  width: 280px;
+  padding: 1rem;
+  border: 1px solid $ar-grey-300;
+  border-radius: $ar-radius-card;
+  background: $ar-white;
+  box-shadow: $ar-shadow-dialog;
+}
+
+.ar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.ar-chip {
+  padding: 0.3rem 0.85rem;
+  border: 2px solid $ar-grey-300;
+  border-radius: 50rem;
+  background: $ar-white;
+  color: $ar-ink-900;
+  font-size: 0.9rem;
+  font-weight: 600;
+
+  &:hover {
+    border-color: $ar-navy-900;
+  }
+
+  &:focus-visible {
+    outline: 3px solid $ar-yellow-400;
+    outline-offset: 2px;
+  }
+}
+
+.ar-chip--selected {
+  border-color: $ar-navy-900;
+  background: $ar-navy-900;
+  color: $ar-white;
+}
+
+.ar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.75rem;
+}
+
+.ar-toolbar__spacer {
+  flex: 1 1 auto;
+}

@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import F, Sum
+from django.db.models import Count, DecimalField, F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
 from rest_framework import generics, status
@@ -9,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog.models import Product
-from catalog.serializers import ProductSerializer
+from catalog.serializers import ProductSerializer, can_view_cost
 from inventory.models import InventoryMovement
 from inventory.serializers import (
     InventoryMovementSerializer,
@@ -271,26 +274,28 @@ class InventorySummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        products = Product.objects.filter(is_active=True)
-
-        low_stock_products = products.filter(
-            stock_quantity__gt=0,
-            stock_quantity__lte=F("low_stock_threshold")
-        )
-
-        out_of_stock_products = products.filter(
-            stock_quantity=0
-        )
-
-        summary = {
-            "active_product_count": products.count(),
-            "total_units_in_stock": (
-                products.aggregate(
-                    total=Sum("stock_quantity")
-                )["total"] or 0
+        """One aggregate query over active products (contracts/products-api.md)."""
+        include_value = can_view_cost(request)
+        aggregates = {
+            "active_product_count": Count("id"),
+            "total_units_in_stock": Coalesce(Sum("stock_quantity"), 0),
+            "low_stock_count": Count(
+                "id",
+                filter=Q(
+                    stock_quantity__gt=0,
+                    stock_quantity__lte=F("low_stock_threshold"),
+                ),
             ),
-            "low_stock_count": low_stock_products.count(),
-            "out_of_stock_count": out_of_stock_products.count(),
+            "out_of_stock_count": Count("id", filter=Q(stock_quantity=0)),
         }
+        if include_value:
+            aggregates["inventory_value"] = Coalesce(
+                Sum(F("cost_price") * F("stock_quantity"), output_field=DecimalField()),
+                Value(Decimal("0")),
+                output_field=DecimalField(),
+            )
+        summary = Product.objects.filter(is_active=True).aggregate(**aggregates)
+        if include_value:
+            summary["inventory_value"] = f"{summary['inventory_value']:.2f}"
 
         return Response(summary, status=status.HTTP_200_OK)

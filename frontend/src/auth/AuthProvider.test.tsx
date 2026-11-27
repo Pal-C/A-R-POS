@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
+import { House } from 'lucide-react'
 import { useState } from 'react'
 import { apiGet, apiPost } from '../api/client'
 import { isApiError } from '../api/errors'
@@ -20,7 +21,7 @@ function ProbePage({ area }: WorkAreaPageProps) {
   }
   return (
     <section>
-      <h1>{area.label}</h1>
+      <p>{area.title} page</p>
       <button onClick={() => fire(1)}>Load</button>
       <button onClick={() => fire(3)}>Load three</button>
       <button onClick={() => apiPost('/probe/forbidden/').catch((e: unknown) => setMessage(isApiError(e) ? e.message : ''))}>
@@ -31,7 +32,7 @@ function ProbePage({ area }: WorkAreaPageProps) {
   )
 }
 
-const probeArea: WorkArea = { path: '/probe', label: 'Probe', load: async () => ProbePage }
+const probeArea: WorkArea = { path: '/probe', navLabel: 'Probe', title: 'Probe', subtitle: '', icon: House, load: async () => ProbePage }
 const areas = [...workAreas, probeArea]
 
 describe('AuthProvider session handling', () => {

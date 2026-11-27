@@ -1,41 +1,43 @@
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router'
+import { useRef } from 'react'
+import { Link, Outlet, useMatches } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import type { PageHandle } from '../routes/router'
 import type { WorkArea } from '../routes/workAreas'
+import { PageHeader } from './PageHeader'
+import { Sidebar } from './Sidebar'
+
+function isPageHandle(handle: unknown): handle is PageHandle {
+  return typeof handle === 'object' && handle !== null && 'title' in handle
+}
 
 export function AppLayout({ areas }: { areas: WorkArea[] }) {
-  const { user, logout, hasPermission } = useAuth()
-  const [signingOut, setSigningOut] = useState(false)
+  const { hasPermission } = useAuth()
+  const matches = useMatches()
+  const mainRef = useRef<HTMLElement>(null)
   const visibleAreas = areas.filter((area) => !area.permission || hasPermission(area.permission))
-
-  async function handleSignOut() {
-    setSigningOut(true)
-    await logout()
-  }
+  const page = [...matches].reverse().map((m) => m.handle).find(isPageHandle)
 
   return (
-    <div className="d-flex flex-column min-vh-100">
-      <header className="navbar navbar-expand border-bottom px-3">
-        <span className="navbar-brand">Ace&amp;Rally POS</span>
-        <nav aria-label="Main" className="me-auto">
-          <ul className="navbar-nav flex-wrap">
-            {visibleAreas.map((area) => (
-              <li className="nav-item" key={area.path}>
-                <NavLink to={area.path} end={area.path === '/'} className="nav-link">
-                  {area.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <span className="me-3" data-testid="current-user">
-          {user?.display_name}
-        </span>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={handleSignOut} disabled={signingOut}>
-          Sign out
-        </button>
-      </header>
-      <main className="container-fluid py-4 flex-grow-1">
+    <div className="ar-shell">
+      <a
+        href="#main"
+        className="visually-hidden-focusable ar-skip"
+        onClick={(event) => {
+          event.preventDefault()
+          mainRef.current?.focus()
+        }}
+      >
+        Skip to content
+      </a>
+      <div className="ar-shell__brand">
+        <Link to="/" className="ar-brand">
+          <span className="ar-brand__logo" aria-hidden="true" />
+          <span className="ar-brand__name">Ace&amp;Rally</span>
+        </Link>
+      </div>
+      <PageHeader title={page?.title ?? ''} subtitle={page?.subtitle} />
+      <Sidebar areas={visibleAreas} />
+      <main id="main" ref={mainRef} tabIndex={-1} className="ar-shell__main">
         <Outlet />
       </main>
     </div>

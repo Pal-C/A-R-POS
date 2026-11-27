@@ -1,17 +1,20 @@
 import { screen, within } from '@testing-library/react'
+import { ClipboardList } from 'lucide-react'
 import { asAnonymous, asUser, staffUser } from '../test/handlers'
 import { renderApp } from '../test/renderApp'
 import { workAreas, type WorkArea } from './workAreas'
 
 const restrictedArea: WorkArea = {
   path: '/reports',
-  label: 'Reports',
+  navLabel: 'Reports',
+  title: 'Reports',
+  subtitle: 'Restricted area',
+  icon: ClipboardList,
   permission: 'x.y',
   load: () => import('../pages/placeholders/WorkAreaPlaceholder').then((m) => m.WorkAreaPlaceholder),
 }
 const areasWithRestricted = [...workAreas, restrictedArea]
 
-const headingFor = (area: WorkArea) => (area.path === '/' ? `Welcome, ${staffUser.display_name}` : area.label)
 
 describe('routing', () => {
   it.each(workAreas.map((area) => [area.path, area] as const))(
@@ -29,9 +32,10 @@ describe('routing', () => {
     asUser()
     renderApp(path)
 
-    expect(await screen.findByRole('heading', { level: 1, name: headingFor(area) })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: area.title })).toBeInTheDocument()
+    expect(screen.getByText(area.subtitle)).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Main' })
-    expect(within(nav).getByRole('link', { name: area.label })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: area.navLabel })).toHaveAttribute('aria-current', 'page')
   })
 
   it('navigates between areas from the nav and supports back', async () => {
@@ -39,12 +43,20 @@ describe('routing', () => {
     const { user, currentPath, router } = renderApp('/')
     const nav = await screen.findByRole('navigation', { name: 'Main' })
 
-    await user.click(within(nav).getByRole('link', { name: 'Stringing Orders' }))
-    expect(await screen.findByRole('heading', { name: 'Stringing Orders' })).toBeInTheDocument()
+    await user.click(within(nav).getByRole('link', { name: 'Services' }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Stringing Orders' })).toBeInTheDocument()
     expect(currentPath()).toBe('/stringing')
 
     await router.navigate(-1)
-    expect(await screen.findByRole('heading', { name: /welcome/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
+  })
+
+  it('redirects the old /products address to Inventory', async () => {
+    asUser()
+    const { currentPath } = renderApp('/products')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Products' })).toBeInTheDocument()
+    expect(currentPath()).toBe('/inventory')
   })
 
   it.each([
@@ -71,7 +83,7 @@ describe('routing', () => {
     asUser({ ...staffUser, permissions: ['x.y'] })
     renderApp('/reports', { areas: areasWithRestricted })
 
-    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument()
+    expect(await screen.findByText('This screen is coming soon.')).toBeInTheDocument()
     const nav = screen.getByRole('navigation', { name: 'Main' })
     expect(within(nav).getByRole('link', { name: 'Reports' })).toBeInTheDocument()
   })
@@ -80,6 +92,6 @@ describe('routing', () => {
     asUser({ ...staffUser, is_superuser: true })
     renderApp('/reports', { areas: areasWithRestricted })
 
-    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument()
+    expect(await screen.findByText('This screen is coming soon.')).toBeInTheDocument()
   })
 })

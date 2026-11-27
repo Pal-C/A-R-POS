@@ -6,8 +6,13 @@ import { createQueryClient } from './api/queryClient'
 import { AuthProvider } from './auth/AuthProvider'
 import { createAppRouter } from './routes/router'
 
-import 'bootstrap/dist/css/bootstrap.min.css'
-import './index.css'
+import '@fontsource/noto-sans/latin-400.css'
+import '@fontsource/noto-sans/latin-500.css'
+import '@fontsource/noto-sans/latin-600.css'
+import '@fontsource/signika/latin-600.css'
+import '@fontsource/signika/latin-700.css'
+import './styles/main.scss'
+import { ToastProvider } from './components/ui/Toast'
 
 const queryClient = createQueryClient()
 const router = createAppRouter()
@@ -15,9 +20,11 @@ const router = createAppRouter()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

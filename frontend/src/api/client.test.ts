@@ -3,6 +3,7 @@ import { api } from '../test/handlers'
 import { server } from '../test/server'
 import { apiDelete, apiGet, apiGetPage, apiPatch, apiPost, http, setUnauthenticatedHandler } from './client'
 import { ApiError } from './errors'
+import { getConnectionStatus, setConnectionStatus } from '../lib/connection'
 
 afterEach(() => setUnauthenticatedHandler(null))
 
@@ -123,5 +124,21 @@ describe('api client', () => {
       ordering: '-created_at',
       status: 'PENDING',
     })
+  })
+
+  it.each([200, 404, 500])('marks the connection online after an HTTP %i response', async (status) => {
+    setConnectionStatus('offline')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    server.use(mswHttp.get(api('/status/'), () => HttpResponse.json({}, { status })))
+    await apiGet('/status/').catch(() => {})
+    expect(getConnectionStatus()).toBe('online')
+    vi.restoreAllMocks()
+  })
+
+  it('marks the connection offline after a network error', async () => {
+    server.use(mswHttp.get(api('/status/'), () => HttpResponse.error()))
+    await apiGet('/status/').catch(() => {})
+    expect(getConnectionStatus()).toBe('offline')
+    setConnectionStatus('online')
   })
 })

@@ -76,6 +76,11 @@ describe('toApiError', () => {
     expect(err.message).toBe('Stock changed.')
   })
 
+  it('keeps the current values sent with a 409', () => {
+    const err = toApiError(httpError(409, { detail: 'Changed.', current: { selling_price: '470.00' } }))
+    expect(err.current).toEqual({ selling_price: '470.00' })
+  })
+
   it('maps 409 without a string detail to the generic conflict message', () => {
     const err = toApiError(httpError(409, { detail: { code: 'x' } }))
     expect(err.message).toBe(MESSAGES.conflict)

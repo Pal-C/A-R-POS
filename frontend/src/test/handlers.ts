@@ -26,6 +26,9 @@ export const defaultHandlers = [
   http.post(api('/auth/login/'), () =>
     HttpResponse.json({ non_field_errors: ['Invalid username or password.'] }, { status: 400 }),
   ),
+  http.get(api('/inventory/summary/'), () =>
+    HttpResponse.json({ active_product_count: 0, total_units_in_stock: 0, low_stock_count: 0, out_of_stock_count: 0 }),
+  ),
   // Work-area placeholders load record counts.
   ...['/sales/', '/products/', '/customers/', '/stringing/orders/', '/preorders/'].map((path) =>
     http.get(api(path), emptyPage),
