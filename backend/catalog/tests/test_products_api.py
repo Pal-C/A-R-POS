@@ -251,5 +251,5 @@ class ProductAPITests(APITestCase):
 
         self.assertEqual(
             response.status_code,
-            403
+            401  # unauthenticated (accounts.authentication)
         )
