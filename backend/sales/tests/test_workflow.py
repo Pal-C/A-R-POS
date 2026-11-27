@@ -218,7 +218,9 @@ class SalesWorkflowAPITests(APITestCase):
         self.assertEqual(sale["amount_paid"], "0.00")
 
         # 9. The audit trail is complete and unchanged.
-        movements = InventoryMovement.objects.filter(reference_number=sale["sale_number"])
+        movements = InventoryMovement.objects.filter(
+            reference_number=sale["sale_number"]
+        )
         self.assertEqual(
             sorted(movements.values_list("movement_type", "quantity_change")),
             [("REVERSAL", 2), ("REVERSAL", 2), ("SALE", -2), ("SALE", -2)],
@@ -270,11 +272,16 @@ class SalesWorkflowAPITests(APITestCase):
             ("post", reverse("sale-cancel", kwargs={"pk": 999999})),
             ("post", reverse("sale-item-add", kwargs={"pk": 999999})),
             ("patch", reverse("sale-item-detail", kwargs={"pk": 1, "item_pk": 999999})),
-            ("delete", reverse("sale-item-detail", kwargs={"pk": 1, "item_pk": 999999})),
+            (
+                "delete",
+                reverse("sale-item-detail", kwargs={"pk": 1, "item_pk": 999999}),
+            ),
         ]
         for method, url in urls:
             with self.subTest(method=method, url=url):
-                response = getattr(self.client, method)(url, {"reason": "x"}, format="json")
+                response = getattr(self.client, method)(
+                    url, {"reason": "x"}, format="json"
+                )
                 self.assertEqual(response.status_code, 404)
 
     def test_item_from_another_sale_returns_404(self):
@@ -387,9 +394,7 @@ class ConcurrentFinalizeTests(TransactionTestCase):
         self.assertEqual(sorted(outcomes), ["ValidationError", "ok"])
         product.refresh_from_db()
         self.assertEqual(product.stock_quantity, 0)
-        self.assertEqual(
-            InventoryMovement.objects.filter(product=product).count(), 1
-        )
+        self.assertEqual(InventoryMovement.objects.filter(product=product).count(), 1)
         self.assertEqual(
             sorted(Sale.objects.values_list("status", flat=True)),
             [Sale.Status.DRAFT, Sale.Status.PENDING_PAYMENT],

@@ -35,7 +35,11 @@ class SerializerTestCase(TestCase):
             "customer_id": self.customer.pk,
             "discount_amount": "100.00",
             "items": [
-                {"product_id": self.racket.pk, "quantity": 2, "discount_amount": "50.00"}
+                {
+                    "product_id": self.racket.pk,
+                    "quantity": 2,
+                    "discount_amount": "50.00",
+                }
             ],
         }
         data.update(overrides)
@@ -104,7 +108,9 @@ class SaleCreateSerializerTests(SerializerTestCase):
 
     def test_archived_customer_is_rejected(self):
         archived = make_customer(full_name="Gone", is_active=False)
-        errors = self.assert_invalid(self.payload(customer_id=archived.pk), "customer_id")
+        errors = self.assert_invalid(
+            self.payload(customer_id=archived.pk), "customer_id"
+        )
         self.assertIn("archived", str(errors))
 
     def test_missing_or_empty_items_are_rejected(self):
@@ -155,7 +161,9 @@ class SaleCreateSerializerTests(SerializerTestCase):
         # Remaining after item discount: 3000 - 50 = 2950
         for discount in ("-1.00", "abc", "2950.01"):
             with self.subTest(discount=discount):
-                self.assert_invalid(self.payload(discount_amount=discount), "discount_amount")
+                self.assert_invalid(
+                    self.payload(discount_amount=discount), "discount_amount"
+                )
 
     def test_client_cannot_set_financial_or_historical_fields(self):
         data = self.payload(
@@ -189,13 +197,21 @@ class DraftEditSerializerTests(SerializerTestCase):
         context = {**self.context, "sale": sale}
 
         ok = SaleItemAddSerializer(
-            data={"product_id": self.racket.pk, "quantity": 1, "discount_amount": "4500"},
+            data={
+                "product_id": self.racket.pk,
+                "quantity": 1,
+                "discount_amount": "4500",
+            },
             context=context,
         )
         self.assertTrue(ok.is_valid(), ok.errors)
 
         too_much = SaleItemAddSerializer(
-            data={"product_id": self.racket.pk, "quantity": 1, "discount_amount": "4500.01"},
+            data={
+                "product_id": self.racket.pk,
+                "quantity": 1,
+                "discount_amount": "4500.01",
+            },
             context=context,
         )
         self.assertFalse(too_much.is_valid())
@@ -209,11 +225,18 @@ class DraftEditSerializerTests(SerializerTestCase):
             {"product_id": self.grip.pk, "quantity": 0},
         ):
             with self.subTest(data=data):
-                self.assertFalse(SaleItemAddSerializer(data=data, context=context).is_valid())
+                self.assertFalse(
+                    SaleItemAddSerializer(data=data, context=context).is_valid()
+                )
 
     def test_item_update_requires_a_field_and_valid_values(self):
         item = self.draft().items.get()
-        cases = [{}, {"quantity": 0}, {"discount_amount": "-1"}, {"discount_amount": "3000.01"}]
+        cases = [
+            {},
+            {"quantity": 0},
+            {"discount_amount": "-1"},
+            {"discount_amount": "3000.01"},
+        ]
         for data in cases:
             with self.subTest(data=data):
                 self.assertFalse(SaleItemUpdateSerializer(item, data=data).is_valid())
@@ -225,7 +248,11 @@ class DraftEditSerializerTests(SerializerTestCase):
         sale = self.draft()
         serializer = SaleUpdateSerializer(
             sale,
-            data={"discount_amount": "10.00", "total_amount": "1.00", "status": "COMPLETED"},
+            data={
+                "discount_amount": "10.00",
+                "total_amount": "1.00",
+                "status": "COMPLETED",
+            },
             partial=True,
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
@@ -248,7 +275,12 @@ class SaleReadSerializerTests(SerializerTestCase):
             payment_method=Payment.Method.CASH,
         )
 
-        data = SaleDetailSerializer(Sale.objects.get(pk=sale.pk)).data
+        request = APIRequestFactory().get("/")
+        request.user = make_user()
+        request.user.is_superuser = True  # may view cost
+        data = SaleDetailSerializer(
+            Sale.objects.get(pk=sale.pk), context={"request": request}
+        ).data
 
         self.assertEqual(data["customer_name"], self.customer.full_name)
         self.assertEqual(data["created_by_name"], self.user.username)
@@ -272,6 +304,11 @@ class SaleReadSerializerTests(SerializerTestCase):
         self.assertEqual(racket["line_total"], "2950.00")
         self.assertEqual(racket["gross_profit"], "950.00")
 
+        # Without the cost permission (or without a request) cost is hidden.
+        hidden = SaleDetailSerializer(Sale.objects.get(pk=sale.pk)).data["items"][0]
+        self.assertNotIn("unit_cost_price", hidden)
+        self.assertNotIn("gross_profit", hidden)
+
         self.assertEqual(len(data["payments"]), 1)
         self.assertEqual(data["payments"][0]["amount"], "1000.00")
 
@@ -281,7 +318,11 @@ class SaleReadSerializerTests(SerializerTestCase):
         self.assertIsNone(data["customer_name"])
 
     def test_read_serializers_are_fully_read_only(self):
-        for serializer_class in (SaleListSerializer, SaleDetailSerializer, PaymentSerializer):
+        for serializer_class in (
+            SaleListSerializer,
+            SaleDetailSerializer,
+            PaymentSerializer,
+        ):
             with self.subTest(serializer_class.__name__):
                 writable = [
                     name

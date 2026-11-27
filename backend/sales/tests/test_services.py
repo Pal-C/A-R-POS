@@ -108,9 +108,7 @@ class CreateDraftSaleTests(SalesServiceTestCase):
             "zero quantity": dict(items=[line(self.racket, 0)]),
             "negative quantity": dict(items=[line(self.racket, -1)]),
             "negative item discount": dict(items=[line(self.racket, 1, "-1.00")]),
-            "item discount above line": dict(
-                items=[line(self.racket, 1, "1500.01")]
-            ),
+            "item discount above line": dict(items=[line(self.racket, 1, "1500.01")]),
             "negative sale discount": dict(
                 items=[line(self.racket, 1)], discount_amount=D("-1.00")
             ),
@@ -119,9 +117,7 @@ class CreateDraftSaleTests(SalesServiceTestCase):
                 discount_amount=D("1000.01"),
             ),
             "inactive product": dict(items=[line(inactive, 1)]),
-            "archived customer": dict(
-                items=[line(self.racket, 1)], customer=archived
-            ),
+            "archived customer": dict(items=[line(self.racket, 1)], customer=archived),
         }
 
         for name, kwargs in cases.items():
@@ -254,9 +250,7 @@ class EditDraftSaleTests(SalesServiceTestCase):
 
 class FinalizeSaleTests(SalesServiceTestCase):
     def test_deducts_inventory_and_records_movements(self):
-        sale = self.finalized(
-            items=[line(self.racket, 2), line(self.grip, 5)]
-        )
+        sale = self.finalized(items=[line(self.racket, 2), line(self.grip, 5)])
 
         self.assertEqual(sale.status, Sale.Status.PENDING_PAYMENT)
         self.assertIsNotNone(sale.finalized_at)
@@ -266,7 +260,9 @@ class FinalizeSaleTests(SalesServiceTestCase):
         movements = InventoryMovement.objects.filter(sale_item__sale=sale)
         self.assertEqual(movements.count(), 2)
         for movement in movements:
-            self.assertEqual(movement.movement_type, InventoryMovement.MovementType.SALE)
+            self.assertEqual(
+                movement.movement_type, InventoryMovement.MovementType.SALE
+            )
             self.assertEqual(movement.quantity_change, -movement.sale_item.quantity)
             self.assertEqual(movement.reference_number, sale.sale_number)
             self.assertEqual(movement.created_by, self.user)
