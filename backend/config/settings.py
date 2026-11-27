@@ -164,11 +164,44 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+# Sessions: sliding expiry of about one shift, renewed on every request.
+SESSION_COOKIE_AGE = int(os.getenv("DJANGO_SESSION_AGE", str(8 * 60 * 60)))
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SECURE_COOKIES = os.getenv("DJANGO_SECURE_COOKIES", "False").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+
+# Reverse proxy. When the proxy terminates HTTPS, Django must trust its
+# X-Forwarded-Proto header, or the CSRF origin check rejects every login.
+if os.getenv("DJANGO_BEHIND_HTTPS_PROXY", "False").lower() in ("1", "true", "yes"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 REST_FRAMEWORK = {
+    # Session-only: unauthenticated requests get 401, permission failures 403.
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
+        "accounts.authentication.SessionAuthentication",
     ],
+
+    "DEFAULT_THROTTLE_RATES": {
+        "login": os.getenv("DJANGO_LOGIN_THROTTLE_RATE", "10/min"),
+        "login_username": os.getenv("DJANGO_LOGIN_USERNAME_THROTTLE_RATE", "10/min"),
+    },
+
+    # Number of trusted reverse proxies in front of Django. Throttles take the
+    # client address from X-Forwarded-For only that many hops back; with 0 the
+    # header (which clients can forge) is ignored and REMOTE_ADDR is used.
+    "NUM_PROXIES": int(os.getenv("DJANGO_NUM_PROXIES", "0")),
 
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
