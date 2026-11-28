@@ -1,21 +1,26 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { UserPlus, Users, X } from 'lucide-react'
 import { useId, useState } from 'react'
-import { customerKeys, customersApi } from '../../api/customers'
-import { toApiError, type FieldErrors } from '../../api/errors'
-import { Button } from '../../components/ui/Button'
-import { TextField } from '../../components/ui/fields'
-import { SearchBox } from '../../components/ui/SearchBox'
-import type { CartCustomer } from './cartReducer'
+import { customerKeys, customersApi } from '../api/customers'
+import { toApiError, type FieldErrors } from '../api/errors'
+import { Button } from './ui/Button'
+import { TextField } from './ui/fields'
+import { SearchBox } from './ui/SearchBox'
+/** A customer picked for an order or sale. */
+export interface CustomerChoice {
+  id: number
+  full_name: string
+  phone_number: string
+}
 
 export interface CustomerPickerProps {
-  value: CartCustomer | null
-  onChange: (customer: CartCustomer | null) => void
-  /** Allow clearing back to a walk-in sale. */
+  value: CustomerChoice | null
+  onChange: (customer: CustomerChoice | null) => void
+  /** Allow clearing back to a walk-in (no customer). */
   allowWalkIn?: boolean
 }
 
-/** Find a customer by name or phone, create one inline, or leave the sale as walk-in. */
+/** Find a customer by name or phone, create one inline, or leave it as walk-in. */
 export function CustomerPicker({ value, onChange, allowWalkIn = true }: CustomerPickerProps) {
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState(false)

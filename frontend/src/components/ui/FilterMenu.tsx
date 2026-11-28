@@ -1,11 +1,13 @@
 import { Funnel } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
-import { SelectField, type SelectOption } from './fields'
+import { SelectField, TextField, type SelectOption } from './fields'
 
 export interface FilterDefinition {
   name: string
   label: string
-  options: SelectOption[]
+  /** `select` (default) uses `options`; `date` is a YYYY-MM-DD date input. */
+  type?: 'select' | 'date'
+  options?: SelectOption[]
   /** Value used when nothing is chosen; when set, the filter has no "All" choice. */
   defaultValue?: string
 }
@@ -60,17 +62,28 @@ export function FilterMenu({ filters, values, onChange, onClear }: FilterMenuPro
       </button>
       {open && (
         <div id={panelId} className="ar-filter__panel" role="group" aria-label="Filters">
-          {filters.map((filter) => (
-            <SelectField
-              key={filter.name}
-              label={filter.label}
-              name={`filter-${filter.name}`}
-              value={values[filter.name] || filter.defaultValue || ''}
-              onChange={(value) => onChange(filter.name, value)}
-              options={filter.options}
-              placeholder={filter.defaultValue === undefined ? 'All' : undefined}
-            />
-          ))}
+          {filters.map((filter) =>
+            filter.type === 'date' ? (
+              <TextField
+                key={filter.name}
+                type="date"
+                label={filter.label}
+                name={`filter-${filter.name}`}
+                value={values[filter.name] || ''}
+                onChange={(value) => onChange(filter.name, value)}
+              />
+            ) : (
+              <SelectField
+                key={filter.name}
+                label={filter.label}
+                name={`filter-${filter.name}`}
+                value={values[filter.name] || filter.defaultValue || ''}
+                onChange={(value) => onChange(filter.name, value)}
+                options={filter.options ?? []}
+                placeholder={filter.defaultValue === undefined ? 'All' : undefined}
+              />
+            ),
+          )}
           <button type="button" className="btn btn-link px-0" onClick={onClear} disabled={activeCount === 0}>
             Clear filters
           </button>

@@ -10,7 +10,8 @@ import { useToast } from '../../components/ui/useToast'
 import { formatMoney, parseMoneyInput } from '../../lib/format'
 import { compareMoney, subtractMoney, toCents } from '../../lib/money'
 import { invalidateAfterSale } from './hooks'
-import { PAYMENT_METHODS, saleLabel } from './salesDisplay'
+import { PAYMENT_METHODS } from '../../lib/payments'
+import { saleLabel } from './salesDisplay'
 
 /** Records a receipt toward a sale's outstanding balance. */
 export function RecordPaymentDialog({ sale, onClose }: { sale: Sale; onClose: () => void }) {

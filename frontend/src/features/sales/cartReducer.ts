@@ -1,3 +1,4 @@
+import type { CustomerChoice } from '../../components/CustomerPicker'
 import type { Product } from '../../api/catalog'
 import type { Money, PaymentMethod } from '../../api/common'
 import type { CustomerListItem } from '../../api/customers'
@@ -25,11 +26,7 @@ export interface CurrentProduct {
   is_active: boolean
 }
 
-export interface CartCustomer {
-  id: number
-  full_name: string
-  phone_number: string
-}
+export type CartCustomer = CustomerChoice
 
 export interface CartState {
   lines: CartLine[]

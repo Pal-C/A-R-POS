@@ -6,21 +6,22 @@ import type { Product } from '../../api/catalog'
 import { toApiError, type ApiError, type FieldErrors } from '../../api/errors'
 import { salesApi, type CheckoutRequest, type DraftCart, type Sale } from '../../api/sales'
 import { useAuth } from '../../auth/useAuth'
+import { CustomerPicker } from '../../components/CustomerPicker'
+import { LeaveGuard } from '../../components/LeaveGuard'
 import { Banner } from '../../components/ui/Banner'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { CheckboxField, MoneyField, SelectField, TextField } from '../../components/ui/fields'
 import { useToast } from '../../components/ui/useToast'
-import { formatDate, formatMoney, parseMoneyInput } from '../../lib/format'
+import { formatDate, formatMoney, parseMoneyInput, todayInStore } from '../../lib/format'
 import { compareMoney, isZero } from '../../lib/money'
 import { productType } from '../products/productDisplay'
 import { Cart } from './Cart'
 import { cartReducer, cartTotals, initialCart, validateCart, type CartCustomer, type CartState, type CurrentProduct } from './cartReducer'
-import { CustomerPicker } from './CustomerPicker'
 import { invalidateAfterSale } from './hooks'
-import { LeaveGuard } from './LeaveGuard'
 import { ProductPicker } from './ProductPicker'
-import { PAYMENT_METHODS, saleLabel, todayInStore } from './salesDisplay'
+import { PAYMENT_METHODS } from '../../lib/payments'
+import { saleLabel } from './salesDisplay'
 
 /** Server error keys → the editor field that shows them. */
 function editorErrors(error: ApiError): { fields: FieldErrors; alert: string | null } {
@@ -179,7 +180,7 @@ export function SaleEditorPage({ draft, draftCustomer = null, currentProducts = 
       title={draft ? saleLabel(draft) : undefined}
       aside={draft ? <span>Started {formatDate(draft.created_at)} by {draft.created_by_name}</span> : undefined}
     >
-      <LeaveGuard when={() => isDirty && !leaving.current} message="The cart hasn't been saved. Leave and lose it?" />
+      <LeaveGuard when={() => isDirty && !leaving.current} title="Leave this sale?" message="The cart hasn't been saved. Leave and lose it?" />
       {changes.length > 0 && (
         <div className="mb-3">
           <Banner>

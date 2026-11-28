@@ -5,7 +5,7 @@ import { makeProduct, makeSale, page } from '../../test/fixtures'
 import { api, asUser, staffUser } from '../../test/handlers'
 import { renderApp } from '../../test/renderApp'
 import { server } from '../../test/server'
-import { todayInStore } from './salesDisplay'
+import { todayInStore } from '../../lib/format'
 
 const cashier = { ...staffUser, permissions: ['sales.record_payment'] }
 const manager = { ...staffUser, permissions: ['sales.record_payment', 'sales.backdate_sale'] }

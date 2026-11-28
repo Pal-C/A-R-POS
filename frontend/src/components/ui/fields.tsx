@@ -219,3 +219,45 @@ export function CheckboxField({ label, name, checked, onChange, error, disabled,
     </div>
   )
 }
+
+export interface RadioGroupFieldProps {
+  label: string
+  name: string
+  value: string
+  onChange: (value: string) => void
+  options: SelectOption[]
+  error?: string[]
+  className?: string
+}
+
+/** A labelled group of radio buttons (fieldset + legend). */
+export function RadioGroupField({ label, name, value, onChange, options, error, className }: RadioGroupFieldProps) {
+  const id = `${name}-${useId()}`
+  const errorId = error?.length ? `${id}-error` : undefined
+  return (
+    <fieldset className={cx('ar-field', className)} aria-describedby={errorId}>
+      <legend className="form-label">{label}</legend>
+      {options.map((option) => (
+        <div key={option.value} className="form-check ar-check">
+          <input
+            id={`${id}-${option.value}`}
+            name={name}
+            type="radio"
+            className={cx('form-check-input', !!error?.length && 'is-invalid')}
+            value={option.value}
+            checked={value === option.value}
+            onChange={() => onChange(option.value)}
+          />
+          <label htmlFor={`${id}-${option.value}`} className="form-check-label">
+            {option.label}
+          </label>
+        </div>
+      ))}
+      {errorId && (
+        <div id={errorId} className="invalid-feedback d-block">
+          {error!.join(' ')}
+        </div>
+      )}
+    </fieldset>
+  )
+}

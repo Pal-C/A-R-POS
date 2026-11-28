@@ -7,7 +7,7 @@ import { TextAreaField } from '../../components/ui/fields'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../components/ui/useToast'
 import type { CartCustomer } from './cartReducer'
-import { CustomerPicker } from './CustomerPicker'
+import { CustomerPicker } from '../../components/CustomerPicker'
 import { invalidateAfterSale } from './hooks'
 import { saleLabel } from './salesDisplay'
 

@@ -17,7 +17,8 @@ import { AssociateCustomerDialog } from './AssociateCustomerDialog'
 import { useSale } from './hooks'
 import { RecordPaymentDialog } from './RecordPaymentDialog'
 import { SaleEditorPage } from './SaleEditorPage'
-import { paymentMethodLabel, saleTitle } from './salesDisplay'
+import { paymentMethodLabel } from '../../lib/payments'
+import { saleTitle } from './salesDisplay'
 
 type Item = Sale['items'][number]
 type PaymentRow = Sale['payments'][number]

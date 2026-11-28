@@ -1,7 +1,8 @@
 import type { Sale } from '../../api/sales'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { formatDate, formatDateOnly, formatMoney } from '../../lib/format'
-import { paymentMethodLabel, saleTitle } from './salesDisplay'
+import { paymentMethodLabel } from '../../lib/payments'
+import { saleTitle } from './salesDisplay'
 
 /** Grey summary block: "Sale #… — customer | n items | method | date", badge and total. */
 export function SaleSummary({ sale }: { sale: Sale }) {
