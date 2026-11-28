@@ -143,7 +143,7 @@ class CreateDetailEditAPITests(StringingAPITestCase):
 
     def test_patch_final_order_refused(self):
         order = make_order(self.manager)
-        cancel_stringing_order(order_id=order.pk, user=self.manager, reason="x")
+        cancel_stringing_order(order_id=order.pk, user=self.manager, reason="x", materials_used=False)
         response = self.client.patch(
             url("stringing-order-detail", order), {"tension": "1"}, format="json"
         )
@@ -264,7 +264,7 @@ class PaymentAPITests(StringingAPITestCase):
 
     def test_receipt_on_cancelled_refused_refund_allowed(self):
         self.receipt("100.00")
-        cancel_stringing_order(order_id=self.order.pk, user=self.manager, reason="x")
+        cancel_stringing_order(order_id=self.order.pk, user=self.manager, reason="x", materials_used=False)
         detail = self.client.get(url("stringing-order-detail", self.order)).data
         self.assertEqual(detail["refund_due"], "100.00")
         self.assertEqual(detail["balance"], "0.00")
@@ -401,11 +401,32 @@ class CancelAPITests(StringingAPITestCase):
         self.url = url("stringing-order-cancel", self.order)
 
     def test_cancel(self):
-        response = self.client.post(self.url, {"reason": "Changed mind"}, format="json")
+        response = self.client.post(
+            self.url, {"reason": "Changed mind", "materials_used": False}, format="json"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], S.CANCELLED)
         self.assertEqual(response.data["cancellation_reason"], "Changed mind")
         self.assertEqual(response.data["cancelled_by"]["id"], self.manager.pk)
+        self.assertIs(response.data["materials_used"], False)
+
+    def test_materials_used_stored_and_audited(self):
+        response = self.client.post(
+            self.url, {"reason": "String cut", "materials_used": True}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertIs(self.order.materials_used, True)
+        event = self.order.events.latest("id")
+        self.assertEqual(event.event_type, "CANCELLED")
+        self.assertEqual(event.changes, {"materials_used": True})
+
+    def test_materials_used_required(self):
+        response = self.client.post(self.url, {"reason": "Changed mind"}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("materials_used", response.data)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, S.RECEIVED)
 
     def test_blank_reason(self):
         for data in ({}, {"reason": ""}, {"reason": "   "}):
@@ -415,13 +436,17 @@ class CancelAPITests(StringingAPITestCase):
                 self.assertIn("reason", response.data)
 
     def test_already_cancelled(self):
-        cancel_stringing_order(order_id=self.order.pk, user=self.manager, reason="x")
-        response = self.client.post(self.url, {"reason": "again"}, format="json")
+        cancel_stringing_order(order_id=self.order.pk, user=self.manager, reason="x", materials_used=False)
+        response = self.client.post(
+            self.url, {"reason": "again", "materials_used": False}, format="json"
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_requires_permission(self):
         self.as_user(self.staff)
-        response = self.client.post(self.url, {"reason": "x"}, format="json")
+        response = self.client.post(
+            self.url, {"reason": "x", "materials_used": False}, format="json"
+        )
         self.assertEqual(response.status_code, 403)
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, S.RECEIVED)

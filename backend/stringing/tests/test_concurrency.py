@@ -77,3 +77,34 @@ class PaymentConcurrencyTests(TransactionTestCase):
             net=net_paid_expression()
         )["net"]
         self.assertEqual(net, Decimal("300.00"))
+
+
+class IdempotentCreateConcurrencyTests(TransactionTestCase):
+    def test_same_key_creates_one_order(self):
+        import uuid
+
+        from django.db import transaction
+
+        from stringing.services import take_in_order
+
+        user = make_user()
+        key = uuid.uuid4()
+
+        def create():
+            with transaction.atomic():
+                take_in_order(
+                    user=user,
+                    racket_description="R",
+                    string_type="S",
+                    service_price=Decimal("100.00"),
+                    client_transaction_id=key,
+                )
+
+        outcomes = race(create, create)
+        # The loser either sees the winner's order or hits the unique key;
+        # the view turns that IntegrityError into the existing order.
+        self.assertIn("ok", outcomes)
+        self.assertTrue(set(outcomes) <= {"ok", "IntegrityError"})
+        self.assertEqual(
+            StringingOrder.objects.filter(client_transaction_id=key).count(), 1
+        )

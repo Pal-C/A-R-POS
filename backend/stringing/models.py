@@ -35,8 +35,17 @@ class StringingOrder(models.Model):
 
     racket_description = models.CharField(max_length=150)
     string_type = models.CharField(max_length=150)
+    string_color = models.CharField(max_length=50, blank=True)
     tension = models.CharField(max_length=50, blank=True)
     notes = models.TextField(blank=True)
+
+    # Add-ons and store-bought string (specs/007 R1). ``discount_amount`` is
+    # the store-string discount when ``string_from_store`` is set.
+    string_from_store = models.BooleanField(default=False)
+    has_stencil = models.BooleanField(default=False)
+    stencil_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    has_grip = models.BooleanField(default=False)
+    grip_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     service_price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -67,6 +76,11 @@ class StringingOrder(models.Model):
         related_name="cancelled_stringing_orders",
     )
     cancellation_reason = models.TextField(blank=True)
+    # Set on cancellation only; null for open orders and legacy cancellations.
+    materials_used = models.BooleanField(null=True, blank=True)
+
+    # Idempotency key for create (specs/007 R3).
+    client_transaction_id = models.UUIDField(null=True, blank=True, unique=True)
 
     class Meta:
         constraints = [
@@ -83,8 +97,29 @@ class StringingOrder(models.Model):
                 name="stringing_cost_nonnegative",
             ),
             models.CheckConstraint(
-                condition=models.Q(discount_amount__lte=models.F("service_price")),
-                name="stringing_discount_not_above_price",
+                condition=models.Q(stencil_price__gte=0, grip_price__gte=0),
+                name="stringing_addon_prices_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(has_stencil=True) | models.Q(stencil_price=0),
+                name="stringing_stencil_price_needs_stencil",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(has_grip=True) | models.Q(grip_price=0),
+                name="stringing_grip_price_needs_grip",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    discount_amount__lte=models.F("service_price")
+                    + models.F("stencil_price")
+                    + models.F("grip_price")
+                ),
+                name="stringing_discount_not_above_total",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status="CANCELLED")
+                | models.Q(materials_used__isnull=True),
+                name="stringing_materials_only_when_cancelled",
             ),
             models.CheckConstraint(
                 condition=models.Q(
@@ -139,9 +174,14 @@ class StringingOrder(models.Model):
         return self.order_number
 
     @property
+    def add_ons_total(self):
+        """Stencil plus grip prices (0 for add-ons not selected)."""
+        return self.stencil_price + self.grip_price
+
+    @property
     def total_amount(self):
-        """Amount the customer owes for the service: price minus discount."""
-        return self.service_price - self.discount_amount
+        """Amount the customer owes: service plus add-ons, minus discount."""
+        return self.service_price + self.add_ons_total - self.discount_amount
 
     @property
     def is_settled(self):

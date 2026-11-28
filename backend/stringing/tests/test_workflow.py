@@ -88,10 +88,10 @@ class StringingWorkflowTests(APITestCase):
             "post", other_pay, {"amount": "300.00", "payment_method": "CASH"}, 201
         )
         cancel_url = self.order_url("stringing-order-cancel", other["id"])
-        self.call("post", cancel_url, {"reason": "Customer changed mind"}, expected=403)
+        self.call("post", cancel_url, {"reason": "Customer changed mind", "materials_used": True}, expected=403)
 
         self.client.force_authenticate(self.manager)
-        cancelled = self.call("post", cancel_url, {"reason": "Customer changed mind"})
+        cancelled = self.call("post", cancel_url, {"reason": "Customer changed mind", "materials_used": True})
         self.assertEqual(cancelled["refund_due"], "300.00")
         refunded = self.call(
             "post",

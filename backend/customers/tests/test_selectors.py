@@ -8,7 +8,9 @@ from customers.tests.factories import make_customer
 class SearchCustomersTests(TestCase):
     def setUp(self):
         self.ana = make_customer(full_name="Ana Reyes", phone_number="0917 123 4567")
-        self.ben = make_customer(full_name="Ben Santos", phone_number="+63 918 555 0000")
+        self.ben = make_customer(
+            full_name="Ben Santos", phone_number="+63 918 555 0000"
+        )
         self.pena = make_customer(full_name="Carla Peña", phone_number="(02) 8123 4567")
         self.archived = make_customer(
             full_name="Ana Archived", phone_number="0917 000 0000", is_active=False
@@ -114,15 +116,24 @@ class CustomerSummaryTests(TestCase):
         racket = make_product(selling_price=D("1500.00"), stock_quantity=50)
 
         # Sale A: 1500, paid 1500, refunded 200 -> net 1300, balance 200
-        a = make_finalized_sale(self.customer, user, items=[line(racket, 1)], paid="1500.00")
+        a = make_finalized_sale(
+            self.customer, user, items=[line(racket, 1)], paid="1500.00"
+        )
         process_refund(
-            user=user, sale=a, amount=D("200.00"),
-            payment_method=Payment.Method.CASH, reason="Adjustment",
+            user=user,
+            sale=a,
+            amount=D("200.00"),
+            payment_method=Payment.Method.CASH,
+            reason="Adjustment",
         )
         # Sale B: 3000, paid 1000 -> balance 2000
-        make_finalized_sale(self.customer, user, items=[line(racket, 2)], paid="1000.00")
+        make_finalized_sale(
+            self.customer, user, items=[line(racket, 2)], paid="1000.00"
+        )
         # Sale C: cancelled after 500 paid -> counted, adds nothing
-        c = make_finalized_sale(self.customer, user, items=[line(racket, 1)], paid="500.00")
+        c = make_finalized_sale(
+            self.customer, user, items=[line(racket, 1)], paid="500.00"
+        )
         cancel_sale(sale_id=c.pk, user=user, reason="Changed mind")
         # Draft: excluded entirely
         create_draft_sale(user=user, customer=self.customer, items=[line(racket, 1)])
@@ -132,15 +143,24 @@ class CustomerSummaryTests(TestCase):
             self.customer, user, service_price=D("450.00"), discount_amount=D("50.00")
         )
         done = make_stringing_order(
-            self.customer, user, service_price=D("300.00"),
+            self.customer,
+            user,
+            service_price=D("300.00"),
             status=StringingOrder.Status.COMPLETED,
         )
-        pay(user=user, stringing_order=done, amount=D("300.00"),
-            payment_method=Payment.Method.CASH)
+        pay(
+            user=user,
+            stringing_order=done,
+            amount=D("300.00"),
+            payment_method=Payment.Method.CASH,
+        )
         # A refund after pickup does not reopen a balance (stringing FR-028).
         process_refund(
-            user=user, stringing_order=done, amount=D("20.00"),
-            payment_method=Payment.Method.CASH, reason="Goodwill",
+            user=user,
+            stringing_order=done,
+            amount=D("20.00"),
+            payment_method=Payment.Method.CASH,
+            reason="Goodwill",
         )
         # Cancelled stringing order: counted, adds nothing
         make_stringing_order(
@@ -149,14 +169,22 @@ class CustomerSummaryTests(TestCase):
 
         # Pre-order: 2 x 5000 = 10000, deposit 4000 -> balance 6000 (open)
         po = make_preorder(self.customer, user, quantity=2)
-        pay(user=user, preorder=po, amount=D("4000.00"),
-            payment_method=Payment.Method.GCASH)
+        pay(
+            user=user,
+            preorder=po,
+            amount=D("4000.00"),
+            payment_method=Payment.Method.GCASH,
+        )
         # Fulfilled pre-order refunded after handover: settled, adds nothing.
         done_po = make_preorder(
             self.customer, user, quantity=1, agreed_unit_price=D("1000.00")
         )
-        pay(user=user, preorder=done_po, amount=D("1000.00"),
-            payment_method=Payment.Method.CASH)
+        pay(
+            user=user,
+            preorder=done_po,
+            amount=D("1000.00"),
+            payment_method=Payment.Method.CASH,
+        )
         PreOrder.objects.filter(pk=done_po.pk).update(
             status=PreOrder.Status.FULFILLED,
             fulfilled_at=done_po.created_at,
@@ -164,8 +192,11 @@ class CustomerSummaryTests(TestCase):
             settled_at=done_po.created_at,
         )
         process_refund(
-            user=user, preorder=done_po, amount=D("100.00"),
-            payment_method=Payment.Method.CASH, reason="Goodwill",
+            user=user,
+            preorder=done_po,
+            amount=D("100.00"),
+            payment_method=Payment.Method.CASH,
+            reason="Goodwill",
         )
 
         # Another customer's records must not leak in.
@@ -195,7 +226,39 @@ class CustomerSummaryTests(TestCase):
         self.assertEqual(summary["total_spent"], self.D("0.00"))
         self.assertEqual(summary["outstanding_balance"], self.D("0.00"))
         self.assertEqual(
-            (summary["sales_count"], summary["stringing_orders_count"],
-             summary["preorders_count"]),
+            (
+                summary["sales_count"],
+                summary["stringing_orders_count"],
+                summary["preorders_count"],
+            ),
             (0, 0, 0),
         )
+
+
+class StringingAddOnTotalsTests(TestCase):
+    """Customer balances and history include stencil and grip (specs/007 R1)."""
+
+    def test_add_ons_count_toward_balance_and_history(self):
+        from decimal import Decimal
+
+        from customers.selectors import customer_summary, stringing_history
+        from stringing.tests.factories import make_order, make_payment, make_user
+
+        customer = make_customer()
+        order = make_order(
+            make_user(),
+            customer=customer,
+            service_price=Decimal("350.00"),
+            discount_amount=Decimal("0.00"),
+            has_stencil=True,
+            stencil_price=Decimal("50.00"),
+            has_grip=True,
+            grip_price=Decimal("120.00"),
+        )
+        make_payment(order, "400.00")
+
+        self.assertEqual(
+            customer_summary(customer)["outstanding_balance"], Decimal("120.00")
+        )
+        row = stringing_history(customer).get(pk=order.pk)
+        self.assertEqual(row.order_total, Decimal("520.00"))

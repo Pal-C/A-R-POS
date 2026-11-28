@@ -36,7 +36,15 @@ class StringingOrderAdmin(admin.ModelAdmin):
     """
 
     form = StringingOrderAdminForm
-    list_display = ["order_number", "customer", "status", "service_price", "created_at"]
+    list_display = [
+        "order_number",
+        "customer",
+        "status",
+        "service_price",
+        "has_stencil",
+        "has_grip",
+        "created_at",
+    ]
     list_filter = ["status"]
     search_fields = ["order_number", "customer__full_name", "racket_description"]
     autocomplete_fields = ["customer"]

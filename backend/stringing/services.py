@@ -21,7 +21,7 @@ ids.
 
 from decimal import Decimal
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
@@ -42,10 +42,21 @@ ALLOWED_TRANSITIONS = {
     Status.READY: (Status.COMPLETED, Status.IN_PROGRESS),
 }
 
-TEXT_FIELDS = ("racket_description", "string_type", "tension", "notes")
+TEXT_FIELDS = ("racket_description", "string_type", "string_color", "tension", "notes")
 REQUIRED_TEXT_FIELDS = ("racket_description", "string_type")
-MONEY_FIELDS = ("service_price", "discount_amount", "direct_cost")
-EDITABLE_FIELDS = ("customer", *TEXT_FIELDS, *MONEY_FIELDS)
+MONEY_FIELDS = (
+    "service_price",
+    "discount_amount",
+    "direct_cost",
+    "stencil_price",
+    "grip_price",
+)
+FLAG_FIELDS = ("string_from_store", "has_stencil", "has_grip")
+EDITABLE_FIELDS = ("customer", *TEXT_FIELDS, *FLAG_FIELDS, *MONEY_FIELDS)
+# Add-on flag -> its price field (specs/007 R1).
+ADD_ONS = {"has_stencil": "stencil_price", "has_grip": "grip_price"}
+
+RECORD_PAYMENT_PERMISSION = "sales.record_payment"
 
 
 class StatusConflict(ValidationError):
@@ -115,18 +126,35 @@ def _clean(values):
         elif value < 0:
             errors[field] = ["Must be zero or more."]
 
-    price = cleaned.get("service_price")
-    discount = cleaned.get("discount_amount")
-    if (
-        "service_price" not in errors
-        and "discount_amount" not in errors
-        and discount > price
-    ):
-        errors["discount_amount"] = ["Discount cannot be more than the price."]
+    for flag, price_field in ADD_ONS.items():
+        if (
+            price_field not in errors
+            and not cleaned.get(flag)
+            and cleaned.get(price_field)
+        ):
+            errors[price_field] = ["Must be 0 when the add-on is not selected."]
+
+    subtotal_fields = ("service_price", *ADD_ONS.values())
+    if not any(field in errors for field in (*subtotal_fields, "discount_amount")):
+        subtotal = sum(cleaned[field] for field in subtotal_fields)
+        if cleaned["discount_amount"] > subtotal:
+            errors["discount_amount"] = [
+                "Discount cannot be more than the service price plus add-ons."
+            ]
 
     if errors:
         raise ValidationError(errors)
     return cleaned
+
+
+def _total(values):
+    """Service price plus add-ons, minus discount."""
+    return (
+        values["service_price"]
+        + values["stencil_price"]
+        + values["grip_price"]
+        - values["discount_amount"]
+    )
 
 
 def _audit_value(value):
@@ -182,10 +210,17 @@ def create_stringing_order(
     string_type,
     service_price,
     customer=None,
+    string_color="",
     tension="",
     notes="",
     discount_amount=ZERO,
     direct_cost=ZERO,
+    string_from_store=False,
+    has_stencil=False,
+    stencil_price=ZERO,
+    has_grip=False,
+    grip_price=ZERO,
+    client_transaction_id=None,
 ):
     """
     Creates a RECEIVED order with a new unique order number and writes a
@@ -195,11 +230,17 @@ def create_stringing_order(
         {
             "racket_description": racket_description,
             "string_type": string_type,
+            "string_color": string_color,
             "tension": tension,
             "notes": notes,
             "service_price": service_price,
             "discount_amount": discount_amount,
             "direct_cost": direct_cost,
+            "string_from_store": bool(string_from_store),
+            "has_stencil": bool(has_stencil),
+            "stencil_price": stencil_price,
+            "has_grip": bool(has_grip),
+            "grip_price": grip_price,
         }
     )
     _check_customer(customer)
@@ -209,10 +250,80 @@ def create_stringing_order(
         customer=customer,
         created_by=user,
         status=Status.RECEIVED,
+        client_transaction_id=client_transaction_id,
         **cleaned,
     )
     _record_event(order, user, EventType.CREATED, to_status=Status.RECEIVED)
     return sync_payment_state(order)
+
+
+def _existing_for_retry(user, client_transaction_id):
+    """The order a repeated take-in refers to, or ``None`` for a new key."""
+    existing = StringingOrder.objects.filter(
+        client_transaction_id=client_transaction_id
+    ).first()
+    if existing is None:
+        return None
+    if existing.created_by_id != user.pk:
+        raise ValidationError(
+            {
+                "client_transaction_id": [
+                    "This order id was already used. Start a new order."
+                ]
+            }
+        )
+    return existing
+
+
+@transaction.atomic
+def take_in_order(*, user, deposit=None, client_transaction_id=None, **fields):
+    """
+    Creates an order (``create_stringing_order`` fields) and records an
+    optional ``deposit`` (``{amount, payment_method, reference_number?}``)
+    as a receipt, in one transaction (specs/007 R3). Any failure saves
+    nothing. The deposit needs ``sales.record_payment`` and must be more
+    than 0 and at most the order total.
+
+    A repeated ``client_transaction_id`` from the same user returns the
+    existing order unchanged; another user's key is refused. Returns
+    ``(order, created)``.
+    """
+    if client_transaction_id:
+        existing = _existing_for_retry(user, client_transaction_id)
+        if existing is not None:
+            return existing, False
+
+    if deposit and not user.has_perm(RECORD_PAYMENT_PERMISSION):
+        raise PermissionDenied("You do not have permission to record payments.")
+
+    order = create_stringing_order(
+        user=user, client_transaction_id=client_transaction_id, **fields
+    )
+
+    if deposit:
+        amount = deposit.get("amount")
+        if amount is None or amount <= 0:
+            raise ValidationError({"deposit": ["Enter a deposit more than 0."]})
+        if amount > order.total_amount:
+            raise ValidationError(
+                {"deposit": ["Deposit cannot be more than the order total."]}
+            )
+        # Imported here: sales.services imports this module.
+        from sales.services import record_payment
+
+        try:
+            record_payment(
+                user=user,
+                amount=amount,
+                payment_method=deposit.get("payment_method"),
+                stringing_order=order,
+                reference_number=deposit.get("reference_number", ""),
+            )
+        except ValidationError as exc:
+            raise ValidationError({"deposit": exc.messages}) from None
+        order.refresh_from_db()
+
+    return order, True
 
 
 @transaction.atomic
@@ -246,7 +357,7 @@ def update_stringing_order(*, order_id, user, **changes):
     if "customer" in diff and cleaned["customer"] is not None:
         _check_customer(cleaned["customer"])
 
-    new_total = cleaned["service_price"] - cleaned["discount_amount"]
+    new_total = _total(cleaned)
     paid = _net_paid(order)
     if new_total < paid:
         raise ValidationError(f"Total cannot be less than the {paid:.2f} already paid.")
@@ -328,16 +439,21 @@ def change_status(*, order_id, user, to_status, expected_status=None):
 
 
 @transaction.atomic
-def cancel_stringing_order(*, order_id, user, reason):
+def cancel_stringing_order(*, order_id, user, reason, materials_used):
     """
     Cancels an order that is not COMPLETED or CANCELLED (FR-021). Payments
     are untouched; money received is returned afterwards with refunds
-    (FR-023). Clears ``paid_in_full_at`` so the order leaves revenue
-    (FR-027) and writes a CANCELLED event.
+    (FR-023). Stores whether materials were already used (specs/007 R4),
+    clears ``paid_in_full_at`` so the order leaves revenue (FR-027) and
+    writes a CANCELLED event.
     """
     reason = (reason or "").strip()
     if not reason:
         raise ValidationError({"reason": ["A cancellation reason is required."]})
+    if not isinstance(materials_used, bool):
+        raise ValidationError(
+            {"materials_used": ["Say whether materials were already used."]}
+        )
 
     order = _lock_order(order_id)
 
@@ -351,6 +467,7 @@ def cancel_stringing_order(*, order_id, user, reason):
     order.cancelled_at = timezone.now()
     order.cancelled_by = user
     order.cancellation_reason = reason
+    order.materials_used = materials_used
     order.paid_in_full_at = None
     order.save(
         update_fields=[
@@ -358,6 +475,7 @@ def cancel_stringing_order(*, order_id, user, reason):
             "cancelled_at",
             "cancelled_by",
             "cancellation_reason",
+            "materials_used",
             "paid_in_full_at",
             "updated_at",
         ]
@@ -370,6 +488,7 @@ def cancel_stringing_order(*, order_id, user, reason):
         from_status=from_status,
         to_status=Status.CANCELLED,
         reason=reason,
+        changes={"materials_used": materials_used},
     )
     return order
 

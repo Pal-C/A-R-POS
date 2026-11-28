@@ -8,6 +8,7 @@ from stringing.views import (
     StringingOrderPaymentsView,
     StringingOrderStatusView,
     StringingRevenueReportView,
+    StringingStatusCountsView,
 )
 
 urlpatterns = [
@@ -15,6 +16,11 @@ urlpatterns = [
         "orders/",
         StringingOrderListCreateView.as_view(),
         name="stringing-order-list-create",
+    ),
+    path(
+        "orders/status-counts/",
+        StringingStatusCountsView.as_view(),
+        name="stringing-order-status-counts",
     ),
     path(
         "orders/<int:pk>/",
