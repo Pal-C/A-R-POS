@@ -11,10 +11,10 @@ import { Card } from '../../components/ui/Card'
 import { ConfirmCheck } from '../../components/ui/ConfirmCheck'
 import { TextAreaField } from '../../components/ui/fields'
 import { useToast } from '../../components/ui/useToast'
-import { formatDateOnly, formatMoney } from '../../lib/format'
+import { formatDateOnly, formatMoney, todayInStore } from '../../lib/format'
 import { invalidateAfterSale, useSale } from './hooks'
 import { SaleSummary } from './SaleSummary'
-import { saleLabel, todayInStore } from './salesDisplay'
+import { saleLabel } from './salesDisplay'
 
 function CancelForm({ sale }: { sale: Sale }) {
   const navigate = useNavigate()

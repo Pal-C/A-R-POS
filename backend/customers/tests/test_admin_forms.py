@@ -41,6 +41,8 @@ class AdminCustomerGuardTests(TestCase):
             "service_price": "450.00",
             "discount_amount": "0",
             "direct_cost": "0",
+            "stencil_price": "0",
+            "grip_price": "0",
             "status": StringingOrder.Status.RECEIVED,
             "created_by": self.user.pk,
             "cancellation_reason": "",

@@ -36,7 +36,7 @@ export interface OrderPayment {
   payment_date: DateTime
   reference_number: string
   notes: string
-  received_by: number
+  received_by: UserRef
 }
 
 /** Body for recording a receipt or refund on a stringing order or pre-order. */

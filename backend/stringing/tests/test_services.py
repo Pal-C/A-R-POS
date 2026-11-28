@@ -150,7 +150,7 @@ class UpdateOrderTests(TestCase):
             self.update(tension="20 lbs")
 
     def test_refused_when_cancelled(self):
-        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="x")
+        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="x", materials_used=False)
         with self.assertRaises(ValidationError):
             self.update(tension="20 lbs")
 
@@ -248,7 +248,7 @@ class ChangeStatusTests(TestCase):
             self.move(S.READY)
 
     def test_cancelled_is_final(self):
-        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="x")
+        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="x", materials_used=False)
         with self.assertRaises(ValidationError):
             self.move(S.IN_PROGRESS)
 
@@ -303,7 +303,7 @@ class PaymentTests(TestCase):
             self.pay("10.00", payment_method="BITCOIN")
 
     def test_receipt_on_cancelled_refused(self):
-        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="x")
+        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="x", materials_used=False)
         with self.assertRaises(ValidationError):
             self.pay("10.00")
 
@@ -371,7 +371,7 @@ class CancelOrderTests(TestCase):
 
     def cancel(self, reason="Customer changed mind"):
         return cancel_stringing_order(
-            order_id=self.order.pk, user=self.user, reason=reason
+            order_id=self.order.pk, user=self.user, reason=reason, materials_used=False
         )
 
     def test_cancel_from_each_open_status(self):
@@ -381,7 +381,7 @@ class CancelOrderTests(TestCase):
                 for status in path:
                     change_status(order_id=order.pk, user=self.user, to_status=status)
                 order = cancel_stringing_order(
-                    order_id=order.pk, user=self.user, reason="  Changed mind "
+                    order_id=order.pk, user=self.user, reason="  Changed mind ", materials_used=False
                 )
                 self.assertEqual(order.status, S.CANCELLED)
                 self.assertEqual(order.cancellation_reason, "Changed mind")
@@ -404,7 +404,7 @@ class CancelOrderTests(TestCase):
         for status in (S.IN_PROGRESS, S.READY, S.COMPLETED):
             change_status(order_id=done.pk, user=self.user, to_status=status)
         with self.assertRaises(ValidationError):
-            cancel_stringing_order(order_id=done.pk, user=self.user, reason="x")
+            cancel_stringing_order(order_id=done.pk, user=self.user, reason="x", materials_used=False)
 
     def test_payments_untouched_and_refund_allowed(self):
         make_payment(self.order, "400.00")

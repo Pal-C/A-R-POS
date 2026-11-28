@@ -85,3 +85,43 @@ export function makeSale(overrides: Partial<import('../api/sales').Sale> = {}): 
     ...overrides,
   }
 }
+
+export function makeStringingOrder(overrides: Partial<import('../api/stringing').StringingOrder> = {}): import('../api/stringing').StringingOrder {
+  const id = overrides.id ?? 126
+  return {
+    id,
+    order_number: `STR-2026-${String(id).padStart(6, '0')}`,
+    customer: { id: 12, full_name: 'Juan Dela Cruz', phone_number: '0917 555 0123', is_active: true },
+    racket_description: 'Arcsaber 11',
+    string_type: 'BG80',
+    string_color: '',
+    tension: '27 lbs',
+    service_price: '350.00',
+    string_from_store: false,
+    has_stencil: false,
+    stencil_price: '0.00',
+    has_grip: false,
+    grip_price: '0.00',
+    add_ons_total: '0.00',
+    discount_amount: '0.00',
+    total_amount: '350.00',
+    amount_paid: '0.00',
+    balance: '350.00',
+    refund_due: '0.00',
+    payment_state: 'UNPAID',
+    status: 'RECEIVED',
+    status_display: 'Received',
+    created_by: { id: 1, username: 'maria' },
+    created_at: '2026-11-19T02:00:00Z',
+    updated_at: '2026-11-19T02:00:00Z',
+    ready_at: null,
+    completed_at: null,
+    paid_in_full_at: null,
+    cancelled_at: null,
+    cancelled_by: null,
+    cancellation_reason: '',
+    materials_used: null,
+    notes: '',
+    ...overrides,
+  }
+}

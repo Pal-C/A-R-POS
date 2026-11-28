@@ -1,6 +1,7 @@
 """Thin DRF views for stringing orders (contracts/stringing-api.md)."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -15,6 +16,7 @@ from stringing.selectors import (
     order_queryset,
     revenue_report,
     search_orders,
+    status_counts,
 )
 from stringing.serializers import (
     CancelSerializer,
@@ -23,6 +25,7 @@ from stringing.serializers import (
     RevenueReportQuerySerializer,
     RevenueReportSerializer,
     StatusChangeSerializer,
+    StringingOrderCreateSerializer,
     StringingOrderDetailSerializer,
     StringingOrderListSerializer,
     StringingOrderWriteSerializer,
@@ -32,8 +35,8 @@ from stringing.services import (
     StatusConflict,
     cancel_stringing_order,
     change_status,
-    create_stringing_order,
     record_order_payment,
+    take_in_order,
     update_stringing_order,
 )
 
@@ -62,7 +65,11 @@ def detail_response(request, pk, status_code=status.HTTP_200_OK):
 
 
 class StringingOrderListCreateView(generics.ListCreateAPIView):
-    """GET: paged search and filters (FR-018–020). POST: create (FR-001–006)."""
+    """
+    GET: paged search and filters (FR-018–020). POST: create with an
+    optional deposit, idempotent by ``client_transaction_id`` (201 new,
+    200 repeat; specs/007 R3).
+    """
 
     permission_classes = [IsAuthenticated]
     serializer_class = StringingOrderListSerializer
@@ -72,12 +79,46 @@ class StringingOrderListCreateView(generics.ListCreateAPIView):
         return run_service(search_orders, self.request.query_params)
 
     def create(self, request, *args, **kwargs):
-        serializer = StringingOrderWriteSerializer(data=request.data)
+        serializer = StringingOrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        order = run_service(
-            create_stringing_order, user=request.user, **serializer.validated_data
-        )
-        return detail_response(request, order.pk, status.HTTP_201_CREATED)
+        data = dict(serializer.validated_data)
+        deposit = data.pop("deposit", None)
+        try:
+            order, created = run_service(
+                take_in_order,
+                user=request.user,
+                deposit=dict(deposit) if deposit else None,
+                **data,
+            )
+        except IntegrityError:
+            # A concurrent request with the same client_transaction_id won the
+            # race: hand back the caller's own order, refuse anyone else's key.
+            key = data.get("client_transaction_id")
+            existing = (
+                key and StringingOrder.objects.filter(client_transaction_id=key).first()
+            )
+            if not existing:
+                raise
+            if existing.created_by_id != request.user.pk:
+                raise ValidationError(
+                    {
+                        "client_transaction_id": [
+                            "This order id was already used. Start a new order."
+                        ]
+                    }
+                ) from None
+            order, created = existing, False
+        code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return detail_response(request, order.pk, code)
+
+
+class StringingStatusCountsView(APIView):
+    """GET: order counts per status for the list filters (specs/007 R5)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(run_service(status_counts, request.query_params))
 
 
 class StringingOrderDetailView(APIView):
@@ -145,6 +186,7 @@ class StringingOrderCancelView(APIView):
             order_id=pk,
             user=request.user,
             reason=serializer.validated_data["reason"],
+            materials_used=serializer.validated_data["materials_used"],
         )
         return detail_response(request, pk)
 

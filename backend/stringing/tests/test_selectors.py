@@ -81,7 +81,7 @@ class SearchOrdersTests(TestCase):
 
     def test_multi_status_filter(self):
         change_status(order_id=self.a1.pk, user=self.user, to_status=S.IN_PROGRESS)
-        cancel_stringing_order(order_id=self.b1.pk, user=self.user, reason="x")
+        cancel_stringing_order(order_id=self.b1.pk, user=self.user, reason="x", materials_used=False)
         self.assertEqual(self.ids(status="IN_PROGRESS"), {self.a1.pk})
         self.assertEqual(
             self.ids(status="in_progress,CANCELLED"), {self.a1.pk, self.b1.pk}
@@ -96,7 +96,7 @@ class SearchOrdersTests(TestCase):
 
     def test_payment_state_filter_excludes_cancelled(self):
         make_payment(self.a1, "100.00")
-        cancel_stringing_order(order_id=self.a1.pk, user=self.user, reason="x")
+        cancel_stringing_order(order_id=self.a1.pk, user=self.user, reason="x", materials_used=False)
         self.assertEqual(self.ids(payment_state="PARTIAL"), set())
         self.assertEqual(
             self.ids(payment_state="UNPAID"), {self.b1.pk, self.walk_in.pk}
@@ -166,7 +166,7 @@ class OrderHistoryTests(TestCase):
         update_stringing_order(
             order_id=self.order.pk, user=self.user, discount_amount=D("60.00")
         )
-        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="Gone")
+        cancel_stringing_order(order_id=self.order.pk, user=self.user, reason="Gone", materials_used=False)
 
         history = order_history(self.order, can_view_financials=True)
         self.assertEqual(
@@ -224,6 +224,21 @@ class RevenueReportTests(TestCase):
     def report(self, start=None, end=None):
         return revenue_report(start or self.DAY, end or self.DAY)
 
+    def test_add_ons_count_toward_revenue(self):
+        # 450 service + 50 stencil + 120 grip - 50 discount = 570.
+        self.paid_order(
+            self.at(10),
+            has_stencil=True,
+            stencil_price=D("50.00"),
+            has_grip=True,
+            grip_price=D("120.00"),
+        )
+        report = self.report()
+        self.assertEqual(report["gross_service_price"], D("450.00"))
+        self.assertEqual(report["gross_add_ons"], D("170.00"))
+        self.assertEqual(report["net_revenue"], D("570.00"))
+        self.assertEqual(report["profit"], D("390.00"))
+
     def test_counts_only_paid_in_full_non_cancelled(self):
         # Paid in full: 400 revenue (450 - 50), 180 cost.
         self.paid_order(self.at(10))
@@ -240,7 +255,7 @@ class RevenueReportTests(TestCase):
         set_times(partial, created_at=self.at(10))
         # Paid in full, then cancelled: not counted.
         cancelled = self.paid_order(self.at(10))
-        cancel_stringing_order(order_id=cancelled.pk, user=self.user, reason="x")
+        cancel_stringing_order(order_id=cancelled.pk, user=self.user, reason="x", materials_used=False)
         set_times(cancelled, cancelled_at=self.at(10, 15))
 
         report = self.report()

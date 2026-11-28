@@ -93,3 +93,15 @@ describe('StatusChips', () => {
     await expectNoAxeViolations(container)
   })
 })
+
+describe('FilterMenu date filters', () => {
+  it('renders a date input and reports YYYY-MM-DD values', async () => {
+    const onChange = vi.fn()
+    render(<FilterMenu filters={[{ name: 'received_from', label: 'Received from', type: 'date' }]} values={{}} onChange={onChange} onClear={() => {}} />)
+    await userEvent.click(screen.getByRole('button', { name: /Filter/ }))
+    const input = screen.getByLabelText('Received from')
+    expect(input).toHaveAttribute('type', 'date')
+    fireEvent.change(input, { target: { value: '2026-11-01' } })
+    expect(onChange).toHaveBeenCalledWith('received_from', '2026-11-01')
+  })
+})

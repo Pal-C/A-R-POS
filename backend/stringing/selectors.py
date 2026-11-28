@@ -39,8 +39,11 @@ class PaymentState:
     values = (UNPAID, PARTIAL, PAID)
 
 
+# Service plus add-ons, minus discount (specs/007 R1); see
+# StringingOrder.total_amount.
 ORDER_TOTAL = ExpressionWrapper(
-    F("service_price") - F("discount_amount"), output_field=MONEY
+    F("service_price") + F("stencil_price") + F("grip_price") - F("discount_amount"),
+    output_field=MONEY,
 )
 
 # Completed and paid in full; see StringingOrder.is_settled.
@@ -118,7 +121,37 @@ def search_orders(params):
     of query parameters; invalid values raise a field-keyed
     ValidationError.
     """
-    queryset = order_queryset()
+    queryset = filter_orders(order_queryset(), params)
+
+    ordering = params.get("ordering") or "-created_at"
+    if ordering not in ORDERINGS:
+        raise ValidationError({"ordering": [f"Use one of: {', '.join(ORDERINGS)}."]})
+    return queryset.order_by(*ORDERINGS[ordering])
+
+
+def status_counts(params):
+    """
+    Order counts per status for the list filters in ``params``, ignoring
+    ``status`` (specs/007 R5). One aggregate query. Returns
+    ``{"all": n, "RECEIVED": n, ...}``.
+    """
+    queryset = filter_orders(
+        annotate_payment_state(StringingOrder.objects.all()),
+        params,
+        with_status=False,
+    )
+    counts = {"all": Count("pk")}
+    for value in StringingOrder.Status.values:
+        counts[value] = Count("pk", filter=Q(status=value))
+    return queryset.aggregate(**counts)
+
+
+def filter_orders(queryset, params, *, with_status=True):
+    """
+    Applies the list's search and filters to an order queryset annotated
+    with ``annotate_payment_state``. ``status`` is skipped when
+    ``with_status`` is false.
+    """
 
     search = (params.get("search") or "").strip()
     if search:
@@ -135,7 +168,7 @@ def search_orders(params):
         queryset = queryset.filter(matches)
 
     statuses = [s for s in (params.get("status") or "").split(",") if s.strip()]
-    if statuses:
+    if statuses and with_status:
         statuses = [s.strip().upper() for s in statuses]
         invalid = [s for s in statuses if s not in StringingOrder.Status.values]
         if invalid:
@@ -173,11 +206,7 @@ def search_orders(params):
         queryset = queryset.filter(
             created_at__lt=local_day_range(received_to, received_to)[1]
         )
-
-    ordering = params.get("ordering") or "-created_at"
-    if ordering not in ORDERINGS:
-        raise ValidationError({"ordering": [f"Use one of: {', '.join(ORDERINGS)}."]})
-    return queryset.order_by(*ORDERINGS[ordering])
+    return queryset
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +305,7 @@ def revenue_report(date_from, date_to):
     totals = StringingOrder.objects.filter(recognized | cancelled).aggregate(
         orders_count=Count("pk", filter=recognized),
         gross_service_price=_money_sum("service_price", recognized),
+        gross_add_ons=_money_sum(F("stencil_price") + F("grip_price"), recognized),
         total_discounts=_money_sum("discount_amount", recognized),
         total_direct_cost=_money_sum("direct_cost", recognized),
         cancelled_count=Count("pk", filter=cancelled),
@@ -316,13 +346,18 @@ def revenue_report(date_from, date_to):
         total=Coalesce(Sum("amount"), ZERO, output_field=MONEY)
     )["total"]
 
-    net_revenue = totals["gross_service_price"] - totals["total_discounts"]
+    net_revenue = (
+        totals["gross_service_price"]
+        + totals["gross_add_ons"]
+        - totals["total_discounts"]
+    )
     profit = net_revenue - totals["total_direct_cost"]
     return {
         "date_from": date_from,
         "date_to": date_to,
         "orders_count": totals["orders_count"],
         "gross_service_price": totals["gross_service_price"],
+        "gross_add_ons": totals["gross_add_ons"],
         "total_discounts": totals["total_discounts"],
         "net_revenue": net_revenue,
         "total_direct_cost": totals["total_direct_cost"],

@@ -10,7 +10,8 @@ import { SearchBox } from '../../components/ui/SearchBox'
 import { StatusBadge } from '../../components/ui/StatusBadge'
 import { formatDateOnly, formatMoney } from '../../lib/format'
 import { SALES_PAGE_SIZE, useSales } from './hooks'
-import { paymentMethodLabel, saleLabel } from './salesDisplay'
+import { paymentMethodLabel } from '../../lib/payments'
+import { saleLabel } from './salesDisplay'
 
 const FILTERS: FilterDefinition[] = [
   {

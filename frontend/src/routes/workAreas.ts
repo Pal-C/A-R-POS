@@ -3,7 +3,6 @@ import type { ComponentType } from 'react'
 import type { Paginated } from '../api/client'
 import { customerKeys, customersApi } from '../api/customers'
 import { preorderKeys, preordersApi } from '../api/preorders'
-import { stringingApi, stringingKeys } from '../api/stringing'
 
 export interface WorkAreaPageProps {
   area: WorkArea
@@ -45,6 +44,9 @@ export interface WorkAreaCount {
 }
 
 const productForm = () => import('../features/products/ProductFormPage').then((m) => m.ProductFormPage)
+
+const stringingForm = () =>
+  import('../features/stringing/StringingOrderFormPage').then((m) => m.StringingOrderFormPage)
 
 const placeholder = () =>
   import('../pages/placeholders/WorkAreaPlaceholder').then((m) => m.WorkAreaPlaceholder)
@@ -119,8 +121,28 @@ export const workAreas: WorkArea[] = [
     title: 'Stringing Orders',
     subtitle: 'Track, update and search racket stringing orders',
     icon: Ribbon,
-    load: placeholder,
-    count: { noun: 'stringing orders', queryKey: stringingKeys.list(), fetch: () => stringingApi.list() },
+    load: () => import('../features/stringing/StringingOrdersPage').then((m) => m.StringingOrdersPage),
+    children: [
+      {
+        path: 'new',
+        title: 'Create a Stringing Order',
+        subtitle: 'Record the customer, racket, string and payment details',
+        load: stringingForm,
+      },
+      {
+        path: ':id/edit',
+        title: 'Edit Stringing Order',
+        subtitle: 'Update the customer, racket, string and prices',
+        load: stringingForm,
+      },
+      {
+        path: ':id/cancel',
+        title: 'Cancel Stringing Order',
+        subtitle: 'Cancel an order and record why it was cancelled',
+        permission: 'stringing.cancel_stringingorder',
+        load: () => import('../features/stringing/CancelStringingOrderPage').then((m) => m.CancelStringingOrderPage),
+      },
+    ],
   },
   {
     path: '/customers',

@@ -51,6 +51,7 @@ class StringingOrderListSerializer(serializers.ModelSerializer):
     created_by = UserRefSerializer(read_only=True)
     cancelled_by = UserRefSerializer(read_only=True, allow_null=True)
     status_display = serializers.CharField(source="get_status_display")
+    add_ons_total = serializers.SerializerMethodField()
     total_amount = serializers.SerializerMethodField()
     profit = serializers.SerializerMethodField()
     amount_paid = serializers.SerializerMethodField()
@@ -66,8 +67,15 @@ class StringingOrderListSerializer(serializers.ModelSerializer):
             "customer",
             "racket_description",
             "string_type",
+            "string_color",
             "tension",
             "service_price",
+            "string_from_store",
+            "has_stencil",
+            "stencil_price",
+            "has_grip",
+            "grip_price",
+            "add_ons_total",
             "discount_amount",
             "total_amount",
             "direct_cost",
@@ -87,11 +95,15 @@ class StringingOrderListSerializer(serializers.ModelSerializer):
             "cancelled_at",
             "cancelled_by",
             "cancellation_reason",
+            "materials_used",
         ]
         read_only_fields = fields
 
     def _is_cancelled(self, order):
         return order.status == StringingOrder.Status.CANCELLED
+
+    def get_add_ons_total(self, order):
+        return _money(order.add_ons_total)
 
     def get_total_amount(self, order):
         return _money(order.order_total)
@@ -153,6 +165,7 @@ class RevenueReportSerializer(serializers.Serializer):
     date_to = serializers.DateField()
     orders_count = serializers.IntegerField()
     gross_service_price = serializers.DecimalField(**MONEY)
+    gross_add_ons = serializers.DecimalField(**MONEY)
     total_discounts = serializers.DecimalField(**MONEY)
     net_revenue = serializers.DecimalField(**MONEY)
     total_direct_cost = serializers.DecimalField(**MONEY)
@@ -178,6 +191,9 @@ class StringingOrderWriteSerializer(serializers.Serializer):
     )
     racket_description = serializers.CharField(max_length=150)
     string_type = serializers.CharField(max_length=150)
+    string_color = serializers.CharField(
+        max_length=50, required=False, allow_blank=True
+    )
     tension = serializers.CharField(max_length=50, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
     service_price = serializers.DecimalField(**ORDER_MONEY, min_value=ZERO)
@@ -187,6 +203,28 @@ class StringingOrderWriteSerializer(serializers.Serializer):
     direct_cost = serializers.DecimalField(
         **ORDER_MONEY, min_value=ZERO, required=False
     )
+    string_from_store = serializers.BooleanField(required=False)
+    has_stencil = serializers.BooleanField(required=False)
+    stencil_price = serializers.DecimalField(
+        **ORDER_MONEY, min_value=ZERO, required=False
+    )
+    has_grip = serializers.BooleanField(required=False)
+    grip_price = serializers.DecimalField(**ORDER_MONEY, min_value=ZERO, required=False)
+
+
+class DepositSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(**MONEY, min_value=Decimal("0.01"))
+    payment_method = serializers.ChoiceField(choices=Payment.Method.choices)
+    reference_number = serializers.CharField(
+        max_length=100, required=False, allow_blank=True, default=""
+    )
+
+
+class StringingOrderCreateSerializer(StringingOrderWriteSerializer):
+    """Create input: order fields plus an optional deposit (specs/007 R3)."""
+
+    deposit = DepositSerializer(required=False, allow_null=True)
+    client_transaction_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class StatusChangeSerializer(serializers.Serializer):
@@ -198,6 +236,7 @@ class StatusChangeSerializer(serializers.Serializer):
 
 class CancelSerializer(serializers.Serializer):
     reason = serializers.CharField()
+    materials_used = serializers.BooleanField()
 
 
 class OrderPaymentCreateSerializer(serializers.Serializer):

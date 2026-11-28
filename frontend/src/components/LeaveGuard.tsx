@@ -1,14 +1,14 @@
 import { useBlocker } from 'react-router'
-import { Button } from '../../components/ui/Button'
-import { Modal } from '../../components/ui/Modal'
+import { Button } from './ui/Button'
+import { Modal } from './ui/Modal'
 
 /** Asks before leaving a page with unsaved work (no browser confirm dialogs). */
-export function LeaveGuard({ when, message }: { when: () => boolean; message: string }) {
+export function LeaveGuard({ when, title, message }: { when: () => boolean; title: string; message: string }) {
   const blocker = useBlocker(({ currentLocation, nextLocation }) => when() && currentLocation.pathname !== nextLocation.pathname)
   return (
     <Modal
       open={blocker.state === 'blocked'}
-      title="Leave this sale?"
+      title={title}
       onClose={() => blocker.reset?.()}
       footer={
         <>

@@ -15,13 +15,13 @@ from preorders.models import PreOrder
 from sales.models import Payment, Sale
 from sales.selectors import MONEY, ZERO, net_paid_expression, net_paid_subquery
 from stringing.models import StringingOrder
+from stringing.selectors import ORDER_TOTAL as STRINGING_ORDER_TOTAL
 
 # Sales that are real transactions for history and totals (drafts are carts).
 FINALIZED_SALE = ~Q(status=Sale.Status.DRAFT)
 OPEN_SALE_STATUSES = (Sale.Status.PENDING_PAYMENT, Sale.Status.COMPLETED)
-STRINGING_TOTAL = ExpressionWrapper(
-    F("service_price") - F("discount_amount"), output_field=MONEY
-)
+# Service plus add-ons, minus discount: the same total the stringing app uses.
+STRINGING_TOTAL = STRINGING_ORDER_TOTAL
 PREORDER_TOTAL = ExpressionWrapper(
     F("quantity") * F("agreed_unit_price"), output_field=MONEY
 )
@@ -40,9 +40,7 @@ def search_customers(query="", status="active"):
     matches the name (case-insensitive substring).
     """
     if status not in STATUS_FILTERS:
-        raise ValidationError(
-            {"status": f"Use one of: {', '.join(STATUS_FILTERS)}."}
-        )
+        raise ValidationError({"status": f"Use one of: {', '.join(STATUS_FILTERS)}."})
 
     queryset = Customer.objects.filter(**STATUS_FILTERS[status])
     query = (query or "").strip()
@@ -130,14 +128,15 @@ def customer_summary(customer):
             ),
         ),
     )
-    stringing_paid = Payment.objects.filter(
-        stringing_order__customer=customer
-    ).exclude(
-        stringing_order__status=StringingOrder.Status.CANCELLED
-    ).exclude(
-        stringing_order__status=StringingOrder.Status.COMPLETED,
-        stringing_order__paid_in_full_at__isnull=False,
-    ).aggregate(net=net_paid_expression())["net"]
+    stringing_paid = (
+        Payment.objects.filter(stringing_order__customer=customer)
+        .exclude(stringing_order__status=StringingOrder.Status.CANCELLED)
+        .exclude(
+            stringing_order__status=StringingOrder.Status.COMPLETED,
+            stringing_order__paid_in_full_at__isnull=False,
+        )
+        .aggregate(net=net_paid_expression())["net"]
+    )
 
     # Settled pre-orders (fulfilled and paid in full) owe nothing, even after
     # a refund made after handover (pre-orders R2). Legacy fulfilled ones
@@ -155,19 +154,23 @@ def customer_summary(customer):
             ),
         ),
     )
-    preorders_paid = Payment.objects.filter(
-        preorder__customer=customer
-    ).exclude(
-        preorder__status=PreOrder.Status.CANCELLED
-    ).exclude(
-        preorder__status=PreOrder.Status.FULFILLED,
-        preorder__settled_at__isnull=False,
-    ).aggregate(net=net_paid_expression())["net"]
+    preorders_paid = (
+        Payment.objects.filter(preorder__customer=customer)
+        .exclude(preorder__status=PreOrder.Status.CANCELLED)
+        .exclude(
+            preorder__status=PreOrder.Status.FULFILLED,
+            preorder__settled_at__isnull=False,
+        )
+        .aggregate(net=net_paid_expression())["net"]
+    )
 
     outstanding = (
-        sales["owed"] - sales_paid
-        + stringing["owed"] - stringing_paid
-        + preorders["owed"] - preorders_paid
+        sales["owed"]
+        - sales_paid
+        + stringing["owed"]
+        - stringing_paid
+        + preorders["owed"]
+        - preorders_paid
     )
 
     return {

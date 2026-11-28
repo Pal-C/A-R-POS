@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expectNoAxeViolations } from '../../test/axe'
 import { ConfirmCheck } from './ConfirmCheck'
-import { CheckboxField, MoneyField, NumberField, SelectField, TextAreaField, TextField } from './fields'
+import { CheckboxField, MoneyField, NumberField, RadioGroupField, SelectField, TextAreaField, TextField } from './fields'
 
 function Controlled({ initial = '' }: { initial?: string }) {
   const [value, setValue] = useState(initial)
@@ -84,6 +84,34 @@ describe('fields', () => {
         <CheckboxField label="Active" name="active" checked={false} onChange={() => {}} />
       </form>,
     )
+    await expectNoAxeViolations(container)
+  })
+})
+
+describe('RadioGroupField', () => {
+  function Harness() {
+    const [value, setValue] = useState('no')
+    return (
+      <RadioGroupField
+        label="Materials"
+        name="materials"
+        value={value}
+        onChange={setValue}
+        options={[
+          { value: 'no', label: 'Unused' },
+          { value: 'yes', label: 'Used' },
+        ]}
+      />
+    )
+  }
+
+  it('groups the options under a legend and reports the choice', async () => {
+    const { container } = render(<Harness />)
+    expect(screen.getByRole('group', { name: 'Materials' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Unused')).toBeChecked()
+    await userEvent.click(screen.getByLabelText('Used'))
+    expect(screen.getByLabelText('Used')).toBeChecked()
+    expect(screen.getByLabelText('Unused')).not.toBeChecked()
     await expectNoAxeViolations(container)
   })
 })

@@ -61,3 +61,8 @@ export function initials(name: string): string {
   const last = words.length > 1 ? words[words.length - 1]!.charAt(0) : ''
   return `${first}${last}`.toUpperCase()
 }
+
+/** Today's business date (YYYY-MM-DD) in the store's time zone. */
+export function todayInStore(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: STORE_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+}
